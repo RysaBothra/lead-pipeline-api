@@ -304,7 +304,7 @@ def _log_send(store: HasuraStore, sender: Dict, to_email: str,
         "sent_at": now,
         "brevo_from": sender["email"],
         "brevo_to": [to_email],
-        "brevo_subject": VOCALLABS_SUBJECT,
+        "brevo_subject": CAMPAIGN_SUBJECT,
         "brevo_synced": True,
     })
 
