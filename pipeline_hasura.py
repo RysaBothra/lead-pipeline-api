@@ -108,8 +108,12 @@ def pick_brevo_account(store: HasuraStore) -> Tuple[str, List[Dict]]:
 
 def run_pipeline(do_send: bool = False, limit: int = 0,
                  titles: Optional[List[str]] = None, per_company: int = 3,
-                 from_username: str = "joy", from_name: str = "Joy") -> dict:
-    """Run the funnel for pending ocean_inputs rows; return a totals dict.
+                 from_username: str = "joy", from_name: str = "Joy",
+                 input_id: Optional[str] = None) -> dict:
+    """Run the funnel for ocean_inputs rows; return a totals dict.
+
+    input_id: process only that one ocean_inputs row (used by the Hasura
+    insert webhook). When None, processes all rows with status='pending'.
 
     Server-safe: takes plain arguments, no argv parsing, and raises (never
     sys.exit) so a web worker can catch and report errors.
@@ -146,10 +150,12 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
               f"(account chosen by most credits)")
 
     # --- read pending source rows ------------------------------------------
+    where = ('{id: {_eq: "%s"}}' % input_id if input_id
+             else '{status: {_eq: "pending"}}')
     inputs = store.fetch(
         "ocean_inputs",
         "id seed_domain countries company_sizes max_results",
-        where='{status: {_eq: "pending"}}',
+        where=where,
         order_by='{created_at: asc}',
         limit=limit or None)
     print(f"\n{len(inputs)} pending ocean_inputs row(s). "

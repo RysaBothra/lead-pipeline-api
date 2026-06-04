@@ -57,6 +57,7 @@ class PipelineRunRequest(BaseModel):
     per_company: int = 3         # decision-makers per company
     from_username: str = "joy"   # which verified Brevo sender local-part to use
     from_name: str = "Joy"
+    input_id: Optional[str] = None  # process just this one ocean_inputs row
 
 
 # --------------------------------------------------------------------------
@@ -83,7 +84,8 @@ def _run_pipeline_job(opts: PipelineRunRequest) -> None:
     try:
         totals = pipeline_hasura.run_pipeline(
             do_send=opts.send, limit=opts.limit, per_company=opts.per_company,
-            from_username=opts.from_username, from_name=opts.from_name)
+            from_username=opts.from_username, from_name=opts.from_name,
+            input_id=opts.input_id)
         print(f"[pipeline] done: {totals}")
     except Exception as e:  # noqa: BLE001
         print(f"[pipeline] FAILED: {e}")
@@ -98,6 +100,27 @@ def pipeline_run(req: PipelineRunRequest, bg: BackgroundTasks,
     mode = "REAL SEND" if req.send else "resolve + store only"
     return {"status": "started", "mode": mode,
             "limit": req.limit or "all pending"}
+
+
+@app.post("/hooks/ocean-input", status_code=202)
+def ocean_input_hook(payload: dict, bg: BackgroundTasks,
+                     _: None = Depends(require_token)) -> dict:
+    """Hasura event trigger target: fires when a row is inserted into
+    ocean_inputs, then runs the FULL pipeline for that row WITH sending.
+
+    So the only manual step is inserting an ocean_inputs row — everything
+    after (Ocean -> Prospeo -> EazyReach -> Brevo) happens automatically.
+    Returns 202 immediately so Hasura doesn't time out; work runs in the
+    background.
+    """
+    new = ((payload.get("event") or {}).get("data") or {}).get("new") or {}
+    input_id = new.get("id")
+    if not input_id:
+        raise HTTPException(400, "no ocean_inputs row id in event payload")
+    bg.add_task(_run_pipeline_job,
+                PipelineRunRequest(send=True, input_id=input_id))
+    return {"status": "started", "input_id": input_id,
+            "seed_domain": new.get("seed_domain")}
 
 
 @app.get("/pipeline/status")
