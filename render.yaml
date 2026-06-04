@@ -1,0 +1,38 @@
+# Render Blueprint — deploys the API as a native Python web service (no Docker).
+# In Render: New > Blueprint > pick this repo. It reads this file, then prompts
+# for the secret env vars marked sync:false.
+services:
+  - type: web
+    name: lead-pipeline-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn server:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 600
+    healthCheckPath: /health
+    envVars:
+      # Secrets — set these in the Render dashboard (not committed).
+      - key: API_TOKEN
+        sync: false
+      - key: HASURA_GRAPHQL_URL
+        sync: false
+      - key: HASURA_ADMIN_SECRET
+        sync: false
+      - key: OCEAN_API_KEY
+        sync: false
+      - key: PROSPEO_API_KEY
+        sync: false
+      - key: EAZYREACH_CLIENT_ID
+        sync: false
+      - key: EAZYREACH_CLIENT_SECRET
+        sync: false
+      # Non-secret tuning — safe to ship as-is.
+      - key: FROM_USERNAME
+        value: joy
+      - key: FROM_NAME
+        value: Joy
+      - key: DECISION_TITLES
+        value: Founder,CEO,Director
+      - key: PER_COMPANY_LIMIT
+        value: "3"
+      - key: PYTHON_VERSION
+        value: "3.12"

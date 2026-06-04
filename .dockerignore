@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+*.md
+setenv.ps1
+.env
+*.csv
+*.json
+.vscode/
+.idea/
+_*.py

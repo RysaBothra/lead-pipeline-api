@@ -1,0 +1,18 @@
+# Secrets — never commit
+.env
+setenv.ps1
+brevo_keys.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Local data / scratch
+*.csv
+mailer_report.csv
+_*.py
+
+# Editor
+.vscode/
+.idea/

@@ -1,0 +1,32 @@
+[
+  {
+    "from_domain": "dentco.in",
+    "from_username": "roshan",
+    "from_name": "Roshan",
+    "to_email": "asha@dentco.in",
+    "to_name": "Asha Rao",
+    "subject": "Quick question, Asha",
+    "body": "<p>Hi Asha, reaching out about your work at dentco...</p>",
+    "cc_mail": [],
+    "attachments": [],
+    "message_id": "FAKE-MSG-asha",
+    "status": "sent",
+    "error": "",
+    "sent_at": "2026-06-03T12:21:36.758302"
+  },
+  {
+    "from_domain": "dentco.in",
+    "from_username": "roshan",
+    "from_name": "Roshan",
+    "to_email": "asha@medikab.in",
+    "to_name": "Asha Rao",
+    "subject": "Quick question, Asha",
+    "body": "<p>Hi Asha, reaching out about your work at medikab...</p>",
+    "cc_mail": [],
+    "attachments": [],
+    "message_id": "FAKE-MSG-asha",
+    "status": "sent",
+    "error": "",
+    "sent_at": "2026-06-03T12:21:36.758334"
+  }
+]
