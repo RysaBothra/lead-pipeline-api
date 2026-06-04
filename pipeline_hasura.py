@@ -40,7 +40,7 @@ from leadpipeline.clients.eazyreach import EazyReachClient, normalize_linkedin
 from leadpipeline.clients.ocean import OceanClient, SearchFilter
 from leadpipeline.clients.prospeo import ProspeoClient
 from leadpipeline.hasura_store import HasuraStore
-from leadpipeline.templates import CAMPAIGN_HTML, CAMPAIGN_SUBJECT
+from leadpipeline.templates import CAMPAIGN_SUBJECT, CAMPAIGN_TEXT
 
 SENT_LOG_TABLE = os.getenv("HASURA_SENT_LOG_TABLE", "subspace_sent_email_log")
 
@@ -248,8 +248,8 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
                     try:
                         msg_id = brevo_client.send_message(
                             sender=sender, to_email=email,
-                            subject=CAMPAIGN_SUBJECT, body=CAMPAIGN_HTML,
-                            html=True)
+                            subject=CAMPAIGN_SUBJECT, body=CAMPAIGN_TEXT,
+                            html=False)
                     except Exception as e:  # noqa: BLE001
                         print(f"      [brevo] {email}: SEND FAILED {e}")
                         store.update_by_pk("email_contacts", contact_id,
@@ -290,7 +290,7 @@ def _log_send(store: HasuraStore, sender: Dict, to_email: str,
         "from_name": sender.get("name", ""),
         "from_domain": domain,
         "subject": CAMPAIGN_SUBJECT,
-        "body": CAMPAIGN_HTML,
+        "body": CAMPAIGN_TEXT,
         "to_mails": [to_email],
         "cc_mails": [],
         "attachments": [],

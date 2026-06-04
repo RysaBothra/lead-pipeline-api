@@ -33,7 +33,7 @@ import sys
 
 from leadpipeline.clients.brevo import BrevoClient
 from leadpipeline.clients.eazyreach import EazyReachClient
-from leadpipeline.templates import CAMPAIGN_HTML, CAMPAIGN_SUBJECT
+from leadpipeline.templates import CAMPAIGN_SUBJECT, CAMPAIGN_TEXT
 
 
 def best_email(resp: dict) -> str:
@@ -209,8 +209,8 @@ for i, r in enumerate(targets, 1):
             to_email=send_to,
             to_name=name,
             subject=CAMPAIGN_SUBJECT,
-            body=CAMPAIGN_HTML,
-            html=True,
+            body=CAMPAIGN_TEXT,
+            html=False,
             sandbox=not do_send,
         )
     except Exception as e:  # noqa: BLE001
