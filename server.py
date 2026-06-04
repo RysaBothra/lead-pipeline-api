@@ -22,6 +22,7 @@ import os
 from typing import Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 # Reuse the already-built, tested pieces.
@@ -61,6 +62,12 @@ class PipelineRunRequest(BaseModel):
 # --------------------------------------------------------------------------
 # Routes
 # --------------------------------------------------------------------------
+@app.get("/", include_in_schema=False)
+def root():
+    """Open the bare URL -> send people to the interactive docs."""
+    return RedirectResponse(url="/docs")
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
