@@ -215,6 +215,11 @@ def pipeline_status(_: None = Depends(require_token)) -> dict:
         out["ocean_inputs_pending"] = len(pend)
     except Exception:  # noqa: BLE001
         pass
+    # Active tuning the live pipeline is actually using (to verify env deploys).
+    out["config"] = {
+        "DECISION_TITLES": os.getenv("DECISION_TITLES", "(unset)"),
+        "PER_COMPANY_LIMIT": os.getenv("PER_COMPANY_LIMIT", "(unset)"),
+    }
     return out
 
 
