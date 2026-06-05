@@ -407,16 +407,12 @@ def _contact_identity(store: HasuraStore, email: str) -> Dict[str, str]:
 
 def run_followups(send: bool = False, min_gap_days: int = FOLLOWUP_GAP_DAYS,
                   limit: int = 0, from_username: str = "joy",
-                  from_name: str = "Joy",
-                  only_emails: Optional[set] = None) -> dict:
+                  from_name: str = "Joy") -> dict:
     """Send the next follow-up to contacts who are due one.
 
     Eligible = already received 1 or 2 campaign emails (so initial has gone out
     but the sequence isn't complete) AND the last send was >= min_gap_days ago.
     Step is derived from prior count: 1 prior -> follow-up 1; 2 prior -> follow-up 2.
-
-    only_emails: if given, restrict to these recipient addresses (multi-tenant
-    scoping — one user's follow-ups never touch another user's contacts).
 
     send=False (default) is a DRY RUN: returns who WOULD be emailed, sends
     nothing. Pass send=True to actually deliver. Never called automatically.
@@ -427,8 +423,6 @@ def run_followups(send: bool = False, min_gap_days: int = FOLLOWUP_GAP_DAYS,
 
     eligible: List[Dict] = []
     for email, h in hist.items():
-        if only_emails is not None and email not in only_emails:
-            continue  # belongs to another tenant
         count = h["count"]
         if count < 1 or count >= MAX_TOTAL_SENDS:
             continue  # sequence not started, or already complete
