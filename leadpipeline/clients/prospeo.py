@@ -17,23 +17,100 @@ endpoint was removed):
 Note: Search Person does NOT return email/phone — that's what the EazyReach
 stage resolves from each linkedin_url. 1 Prospeo credit per search that returns
 at least one person; 25 results per page.
+
+This client also exposes find_email_by_linkedin(), used as a FALLBACK when
+EazyReach returns no email. It hits Prospeo's Enrich Person endpoint:
+  POST https://api.prospeo.io/enrich-person
+  Header: X-KEY: <api_key>
+  Body:   {"data": {"linkedin_url": "https://www.linkedin.com/in/<handle>"}}
+  Response:
+    {"error": false, "person": {"email": {"email": "...", "status": "VERIFIED",
+                                           "revealed": true, ...}}}
+1 credit per email found (0 if none / not revealed). If the account has no
+credits the email comes back revealed:false and we treat it as "no email".
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..http_client import HTTPClient
 from ..models import DecisionMaker
 
 
+def _ensure_scheme(url: str) -> str:
+    """Enrich Person wants a full URL with a scheme."""
+    u = (url or "").strip()
+    if not u:
+        return u
+    if u.startswith("http://") or u.startswith("https://"):
+        return u
+    return "https://" + u.lstrip("/")
+
+
+def _extract_email(resp: Dict[str, Any]) -> Tuple[str, bool]:
+    """Pull (email, verified) from an Enrich Person response. The address only
+    appears when person.email.revealed is true; status VERIFIED/VALID = verified.
+    Parsed defensively in case the payload nests under response/result instead."""
+    data = (resp.get("person") or resp.get("response")
+            or resp.get("result") or resp)
+    if not isinstance(data, dict):
+        return "", False
+    node = data.get("email")
+    email, status = "", ""
+    if isinstance(node, dict):
+        email = node.get("email") or node.get("value") or ""
+        status = (node.get("status") or node.get("email_status")
+                  or node.get("verification") or "")
+    elif isinstance(node, str):
+        email = node
+        status = data.get("email_status") or data.get("verification") or ""
+    verified = str(status).strip().upper() in {"VERIFIED", "VALID"}
+    return (email or ""), verified
+
+
 class ProspeoClient:
-    def __init__(self, api_key: str, rate_per_sec: float = 5.0):
+    def __init__(self, api_key: str, rate_per_sec: float = 1.0):
         self.api_key = (api_key or "").strip()
         self.api = HTTPClient(
             "https://api.prospeo.io",
             {"X-KEY": self.api_key},
             rate_per_sec=rate_per_sec,
         )
+
+    def _post(self, path: str, body: Dict[str, Any],
+              attempts: int = 5) -> Dict[str, Any]:
+        """POST with backoff on Prospeo's rate limit, which it returns as an
+        HTTP 400 body {"error":true,"error_code":"Rate limit exceeded"} — the
+        HTTPClient's normal 429 retry doesn't catch that status."""
+        delay = 2.0
+        for i in range(attempts):
+            try:
+                return self.api.do_json("POST", path, body) or {}
+            except RuntimeError as e:
+                if "Rate limit" in str(e) and i < attempts - 1:
+                    time.sleep(delay)
+                    delay = min(delay * 2, 30.0)
+                    continue
+                raise
+        return {}
+
+    def find_email_by_linkedin(self, linkedin_url: str) -> Tuple[str, bool]:
+        """Resolve a work email from a LinkedIn profile URL via Enrich Person.
+        Returns (email, verified); empty email means no match / not revealed.
+        Used as a fallback after EazyReach."""
+        url = _ensure_scheme(linkedin_url)
+        if not url:
+            return "", False
+        try:
+            resp = self._post("/enrich-person", {"data": {"linkedin_url": url}})
+        except RuntimeError as e:
+            # Prospeo signals "no match / no email" with a 400 error_code.
+            if any(code in str(e) for code in
+                   ("NO_RESULTS", "NO_EMAIL", "NOT_FOUND")):
+                return "", False
+            raise
+        return _extract_email(resp)
 
     def find_decision_makers(self, domain: str,
                              titles: Optional[List[str]] = None,

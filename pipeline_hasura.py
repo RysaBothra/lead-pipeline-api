@@ -229,17 +229,24 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
                                        {"status": "no_linkedin"})
                     continue
 
-                # 3) EAZYREACH: resolve email from the LinkedIn URL Prospeo gave.
+                # 3) EMAIL: EazyReach first, Prospeo enrich-person as fallback.
+                email, verified, source = "", False, ""
                 try:
                     resp = eazy.email_for_url(dm.linkedin_url)
                     email, verified = _best_email(resp)
+                    if email:
+                        source = "eazyreach"
                 except Exception as e:  # noqa: BLE001
                     print(f"    [eazyreach] {dm.full_name}: ERROR {e}")
-                    store.insert_one("email_contacts", {
-                        "decision_maker_id": dm_id, "linkedin_url": li_norm,
-                        "status": "error", "error": str(e)[:500]})
-                    store.update_by_pk("decision_makers", dm_id, {"status": "done"})
-                    continue
+                # Fallback: if EazyReach found nothing (or errored), try Prospeo.
+                if not email:
+                    try:
+                        p_email, p_verified = prospeo.find_email_by_linkedin(
+                            dm.linkedin_url)
+                        if p_email:
+                            email, verified, source = p_email, p_verified, "prospeo"
+                    except Exception as e:  # noqa: BLE001
+                        print(f"    [prospeo-email] {dm.full_name}: ERROR {e}")
 
                 contact_row = store.insert_one("email_contacts", {
                     "decision_maker_id": dm_id, "linkedin_url": li_norm,
@@ -250,8 +257,9 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
                 contact_id = contact_row.get("id")
                 if email:
                     totals["emails"] += 1
-                print(f"    [eazyreach] {dm.full_name:24} -> "
-                      f"{email or '(none)'} {'[verified]' if verified else ''}")
+                tag = f"[{source}{' verified' if verified else ''}]" if email else ""
+                print(f"    [email] {dm.full_name:24} -> "
+                      f"{email or '(none)'} {tag}")
 
                 # 4) BREVO
                 if email and do_send:
