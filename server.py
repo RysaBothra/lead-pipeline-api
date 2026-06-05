@@ -19,7 +19,7 @@ Run in Docker / prod: see Dockerfile (gunicorn + uvicorn workers).
 from __future__ import annotations
 
 import os
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
