@@ -6,6 +6,8 @@ One FastAPI app, protected by an API key, exposing:
   POST /send                   - send one email via Brevo (the mailer)
   POST /pipeline/run           - kick off Ocean->Prospeo->EazyReach->Brevo in the
                                  background for pending ocean_inputs rows
+  POST /pipeline/followups     - manually send the next follow-up to due
+                                 contacts (dry-run by default; never automatic)
   GET  /pipeline/status        - counts per stage table from Hasura
 
 Auth: every endpoint except /health requires
@@ -66,6 +68,14 @@ class InputCreate(BaseModel):
     max_results: int = 10
 
 
+class FollowupRequest(BaseModel):
+    send: bool = False           # False = dry-run preview (sends nothing)
+    min_gap_days: int = 4        # min days since a contact's last send
+    limit: int = 0               # cap recipients (0 = all eligible)
+    from_username: str = "joy"   # which verified Brevo sender local-part to use
+    from_name: str = "Joy"
+
+
 # --------------------------------------------------------------------------
 # Routes
 # --------------------------------------------------------------------------
@@ -106,6 +116,37 @@ def pipeline_run(req: PipelineRunRequest, bg: BackgroundTasks,
     mode = "REAL SEND" if req.send else "resolve + store only"
     return {"status": "started", "mode": mode,
             "limit": req.limit or "all pending"}
+
+
+def _run_followups_job(opts: FollowupRequest) -> None:
+    try:
+        out = pipeline_hasura.run_followups(
+            send=opts.send, min_gap_days=opts.min_gap_days, limit=opts.limit,
+            from_username=opts.from_username, from_name=opts.from_name)
+        print(f"[followups] done: eligible={out['eligible']} sent={out['sent']}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[followups] FAILED: {e}")
+
+
+@app.post("/pipeline/followups")
+def pipeline_followups(req: FollowupRequest, bg: BackgroundTasks,
+                       _: None = Depends(require_token)) -> dict:
+    """Manually send the next follow-up to contacts who are due one.
+
+    NEVER automatic. Each contact gets at most initial + 2 follow-ups, spaced
+    >= min_gap_days apart, then stops. With send=false (default) this is a DRY
+    RUN that returns exactly who would be emailed without sending anything;
+    call again with send=true to actually deliver (runs in the background).
+    """
+    if not req.send:
+        # Dry-run preview is fast (Hasura reads only) — run inline and return it.
+        return pipeline_hasura.run_followups(
+            send=False, min_gap_days=req.min_gap_days, limit=req.limit,
+            from_username=req.from_username, from_name=req.from_name)
+    bg.add_task(_run_followups_job, req)
+    return {"status": "started", "mode": "REAL SEND",
+            "min_gap_days": req.min_gap_days,
+            "note": "watch logs or GET /pipeline/sends for results"}
 
 
 @app.post("/hooks/ocean-input", status_code=202)

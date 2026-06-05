@@ -34,3 +34,38 @@ Worth a look?
 Best,
 Joy
 EazyReach | eazyreach.app"""
+
+
+# --- Follow-ups -------------------------------------------------------------
+# Sent ONLY when manually triggered (POST /pipeline/followups with send=true),
+# never automatically. Sequence per contact: initial -> follow-up 1 ->
+# follow-up 2, each at least 4 days apart, then stop. Edit the copy freely;
+# the subjects double as the sequence markers used to count prior sends, so if
+# you change a subject after some sends have gone out, earlier sends won't be
+# counted toward the cadence.
+
+FOLLOWUP1_SUBJECT = "Following up — AI phones for {{contact.COMPANY}}"
+
+FOLLOWUP1_TEXT = """Hi {{contact.FIRSTNAME}},
+
+Floating my note back to the top of your inbox in case it got buried.
+
+We set up the outbound contact + AI phone pipeline for CareerFit, and since {{contact.COMPANY}} is in the same space, the same setup would translate directly. Happy to show you what it looks like in 10 minutes.
+
+Open to a quick look?
+
+Best,
+Joy
+EazyReach | eazyreach.app"""
+
+FOLLOWUP2_SUBJECT = "One last note"
+
+FOLLOWUP2_TEXT = """Hi {{contact.FIRSTNAME}},
+
+I'll keep this short — I don't want to clutter your inbox.
+
+If finding verified decision-maker contacts and running outbound (including AI calling) is on your radar for {{contact.COMPANY}}, I'd love to help. If the timing isn't right, no worries at all and I won't follow up again.
+
+Best,
+Joy
+EazyReach | eazyreach.app"""

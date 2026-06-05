@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
 from leadpipeline.clients.brevo import BrevoClient
@@ -40,9 +40,22 @@ from leadpipeline.clients.eazyreach import EazyReachClient, normalize_linkedin
 from leadpipeline.clients.ocean import OceanClient, SearchFilter
 from leadpipeline.clients.prospeo import ProspeoClient
 from leadpipeline.hasura_store import HasuraStore
-from leadpipeline.templates import CAMPAIGN_SUBJECT, CAMPAIGN_TEXT
+from leadpipeline.templates import (CAMPAIGN_SUBJECT, CAMPAIGN_TEXT,
+                                    FOLLOWUP1_SUBJECT, FOLLOWUP1_TEXT,
+                                    FOLLOWUP2_SUBJECT, FOLLOWUP2_TEXT)
 
 SENT_LOG_TABLE = os.getenv("HASURA_SENT_LOG_TABLE", "subspace_sent_email_log")
+
+# Sequence subjects double as markers: a send counts toward a contact's cadence
+# only if its logged subject is one of these. Order = step number.
+SEQUENCE_SUBJECTS = [CAMPAIGN_SUBJECT, FOLLOWUP1_SUBJECT, FOLLOWUP2_SUBJECT]
+# step -> (subject, body) for follow-ups. step 1 = first follow-up, etc.
+FOLLOWUP_STEPS = {
+    1: (FOLLOWUP1_SUBJECT, FOLLOWUP1_TEXT),
+    2: (FOLLOWUP2_SUBJECT, FOLLOWUP2_TEXT),
+}
+MAX_TOTAL_SENDS = 3   # initial + 2 follow-ups, then stop
+FOLLOWUP_GAP_DAYS = 4
 
 
 def _arg(flag: str, default=None):
@@ -242,6 +255,15 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
 
                 # 4) BREVO
                 if email and do_send:
+                    # Dedup: the auto pipeline sends the INITIAL email only, once
+                    # ever. If this address already got any campaign email (this
+                    # or a previous run), skip — follow-ups are manual-only.
+                    if _campaign_send_count(store, email) >= 1:
+                        store.update_by_pk("email_contacts", contact_id,
+                                           {"status": "already_sent"})
+                        print(f"      [dedup] {email} already emailed — "
+                              f"skipping (follow-ups are manual)")
+                        continue
                     # Upsert the recipient as a Brevo contact so {{contact.*}}
                     # tags in the template populate.
                     try:
@@ -286,17 +308,18 @@ def main() -> None:
     )
 
 
-def _log_send(store: HasuraStore, sender: Dict, to_email: str,
-              msg_id: str) -> None:
-    """Insert one delivered email into subspace_sent_email_log."""
+def _log_send(store: HasuraStore, sender: Dict, to_email: str, msg_id: str,
+              subject: str = CAMPAIGN_SUBJECT, body: str = CAMPAIGN_TEXT) -> None:
+    """Insert one delivered email into subspace_sent_email_log. The subject is
+    also the cadence marker (see SEQUENCE_SUBJECTS), so always log the real one."""
     local, _, domain = sender["email"].partition("@")
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     store.insert_one(SENT_LOG_TABLE, {
         "from_username": local,
         "from_name": sender.get("name", ""),
         "from_domain": domain,
-        "subject": CAMPAIGN_SUBJECT,
-        "body": CAMPAIGN_TEXT,
+        "subject": subject,
+        "body": body,
         "to_mails": [to_email],
         "cc_mails": [],
         "attachments": [],
@@ -304,9 +327,146 @@ def _log_send(store: HasuraStore, sender: Dict, to_email: str,
         "sent_at": now,
         "brevo_from": sender["email"],
         "brevo_to": [to_email],
-        "brevo_subject": CAMPAIGN_SUBJECT,
+        "brevo_subject": subject,
         "brevo_synced": True,
     })
+
+
+# --------------------------------------------------------------------------
+# Cadence helpers (dedup + follow-ups)
+# --------------------------------------------------------------------------
+def _parse_ts(s: Optional[str]) -> Optional[datetime]:
+    if not s:
+        return None
+    s = s.strip().replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _campaign_send_count(store: HasuraStore, email: str) -> int:
+    """How many campaign-sequence emails (initial + follow-ups) have already
+    gone to this address. Used by the auto pipeline to send the initial once."""
+    q = ("query($subj:[String!],$em:jsonb!){%s("
+         "where:{brevo_subject:{_in:$subj},to_mails:{_contains:$em}}"
+         "){id}}" % SENT_LOG_TABLE)
+    rows = store.execute(q, {"subj": SEQUENCE_SUBJECTS, "em": [email]}).get(
+        SENT_LOG_TABLE) or []
+    return len(rows)
+
+
+def _campaign_history(store: HasuraStore) -> Dict[str, Dict]:
+    """Map recipient email -> {count, last} across all campaign-sequence sends."""
+    q = ("query($subj:[String!]){%s("
+         "where:{brevo_subject:{_in:$subj}},order_by:{sent_at:desc}"
+         "){to_mails sent_at}}" % SENT_LOG_TABLE)
+    rows = store.execute(q, {"subj": SEQUENCE_SUBJECTS}).get(SENT_LOG_TABLE) or []
+    hist: Dict[str, Dict] = {}
+    for r in rows:
+        ts = r.get("sent_at")
+        for em in (r.get("to_mails") or []):
+            h = hist.setdefault(em, {"count": 0, "last": None})
+            h["count"] += 1
+            if h["last"] is None or (ts or "") > h["last"]:
+                h["last"] = ts
+    return hist
+
+
+def _contact_identity(store: HasuraStore, email: str) -> Dict[str, str]:
+    """Best-effort FIRSTNAME/COMPANY for a recipient, for Brevo personalization
+    on follow-ups (the contact may live on a different Brevo account)."""
+    try:
+        rows = store.execute(
+            "query($em:String!){email_contacts(where:{email:{_eq:$em}},"
+            "order_by:{created_at:desc},limit:1){decision_maker_id}}",
+            {"em": email}).get("email_contacts") or []
+        dmid = rows[0].get("decision_maker_id") if rows else None
+        if not dmid:
+            return {}
+        dm = store.execute(
+            "query($id:uuid!){decision_makers_by_pk(id:$id)"
+            "{first_name full_name company_name domain}}",
+            {"id": dmid}).get("decision_makers_by_pk") or {}
+        return {
+            "FIRSTNAME": dm.get("first_name") or dm.get("full_name") or "there",
+            "COMPANY": dm.get("company_name") or dm.get("domain") or "",
+        }
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def run_followups(send: bool = False, min_gap_days: int = FOLLOWUP_GAP_DAYS,
+                  limit: int = 0, from_username: str = "joy",
+                  from_name: str = "Joy") -> dict:
+    """Send the next follow-up to contacts who are due one.
+
+    Eligible = already received 1 or 2 campaign emails (so initial has gone out
+    but the sequence isn't complete) AND the last send was >= min_gap_days ago.
+    Step is derived from prior count: 1 prior -> follow-up 1; 2 prior -> follow-up 2.
+
+    send=False (default) is a DRY RUN: returns who WOULD be emailed, sends
+    nothing. Pass send=True to actually deliver. Never called automatically.
+    """
+    store = HasuraStore()
+    hist = _campaign_history(store)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=min_gap_days)
+
+    eligible: List[Dict] = []
+    for email, h in hist.items():
+        count = h["count"]
+        if count < 1 or count >= MAX_TOTAL_SENDS:
+            continue  # sequence not started, or already complete
+        last = _parse_ts(h["last"])
+        if last and last > cutoff:
+            continue  # too soon since last send
+        eligible.append({"email": email, "prior_sends": count,
+                         "followup": count, "last_sent": h["last"]})
+    eligible.sort(key=lambda x: x["last_sent"] or "")
+    if limit:
+        eligible = eligible[:limit]
+
+    out = {"mode": "REAL SEND" if send else "DRY RUN (nothing sent)",
+           "min_gap_days": min_gap_days, "eligible": len(eligible),
+           "sent": 0, "recipients": eligible}
+    if not send or not eligible:
+        return out
+
+    api_key, senders = pick_brevo_account(store)
+    uname = (from_username or "").strip().lower()
+    sender_email = next(
+        (s["email"] for s in senders
+         if (s.get("email") or "").split("@", 1)[0].lower() == uname),
+        senders[0]["email"])
+    sender = {"name": from_name, "email": sender_email}
+    brevo_client = BrevoClient(api_key)
+    for attr in ("FIRSTNAME", "COMPANY"):
+        brevo_client.ensure_contact_attribute(attr)
+
+    for r in eligible:
+        subject, body = FOLLOWUP_STEPS[r["followup"]]
+        attrs = _contact_identity(store, r["email"])
+        if attrs:
+            try:
+                brevo_client.upsert_contact(r["email"], attrs)
+            except Exception as e:  # noqa: BLE001
+                print(f"  [brevo] upsert warning {r['email']}: {e}")
+        try:
+            msg_id = brevo_client.send_message(
+                sender=sender, to_email=r["email"], subject=subject,
+                body=body, html=False)
+        except Exception as e:  # noqa: BLE001
+            r["error"] = str(e)[:300]
+            print(f"  [followup] {r['email']}: SEND FAILED {e}")
+            continue
+        _log_send(store, sender, r["email"], msg_id, subject=subject, body=body)
+        r["sent"] = True
+        out["sent"] += 1
+        print(f"  [followup {r['followup']}] sent -> {r['email']} ({msg_id})")
+
+    print(f"\nFOLLOW-UPS done. eligible={out['eligible']} sent={out['sent']}")
+    return out
 
 
 if __name__ == "__main__":
