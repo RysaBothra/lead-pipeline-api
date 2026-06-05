@@ -31,7 +31,7 @@ services:
       - key: FROM_NAME
         value: Joy
       - key: DECISION_TITLES
-        value: Founder,CEO,Director
+        value: Founder,Co-Founder,CEO,Managing Director,Director,Owner,Partner,Head of Talent,Talent Acquisition,Recruiter
       - key: PER_COMPANY_LIMIT
         value: "5"
       - key: PYTHON_VERSION
