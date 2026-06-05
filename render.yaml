@@ -33,6 +33,6 @@ services:
       - key: DECISION_TITLES
         value: Founder,CEO,Director
       - key: PER_COMPANY_LIMIT
-        value: "3"
+        value: "5"
       - key: PYTHON_VERSION
         value: "3.12"
