@@ -195,31 +195,53 @@ def pipeline_sends(_: None = Depends(require_token)) -> list:
         order_by="{sent_at: desc}", limit=25)
 
 
+def _id_in(ids: list) -> str:
+    """GraphQL _in snippet for a list of uuid strings."""
+    return "[" + ", ".join('"%s"' % i for i in ids) + "]"
+
+
 @app.get("/pipeline/status")
 def pipeline_status(_: None = Depends(require_token)) -> dict:
-    """Aggregate counts per stage table from Hasura."""
+    """Stage counts scoped to the MOST RECENT ocean_inputs row (the last run),
+    not lifetime totals. Walks input -> companies -> people -> emails by id."""
     store = HasuraStore()
-    out = {}
-    for table in ("ocean_inputs", "ocean_companies", "decision_makers",
-                  "email_contacts"):
-        try:
-            data = store.execute(
-                f"query {{ {table}_aggregate {{ aggregate {{ count }} }} }}")
-            out[table] = data[f"{table}_aggregate"]["aggregate"]["count"]
-        except Exception as e:  # noqa: BLE001
-            out[table] = f"error: {e}"
-    # pending inputs left to process
-    try:
-        pend = store.fetch("ocean_inputs", "id",
-                           where='{status: {_eq: "pending"}}')
-        out["ocean_inputs_pending"] = len(pend)
-    except Exception:  # noqa: BLE001
-        pass
-    # Active tuning the live pipeline is actually using (to verify env deploys).
-    out["config"] = {
+    cfg = {
         "DECISION_TITLES": os.getenv("DECISION_TITLES", "(unset)"),
         "PER_COMPANY_LIMIT": os.getenv("PER_COMPANY_LIMIT", "(unset)"),
     }
+    out = {"ocean_inputs_pending": 0, "ocean_companies": 0,
+           "decision_makers": 0, "email_contacts": 0,
+           "emails_found": 0, "emails_sent": 0, "scope": None, "config": cfg}
+
+    latest = store.fetch("ocean_inputs", "id seed_domain status created_at",
+                         order_by="{created_at: desc}", limit=1)
+    if not latest:
+        return out
+    inp = latest[0]
+    out["scope"] = {"seed_domain": inp.get("seed_domain"),
+                    "status": inp.get("status"),
+                    "created_at": inp.get("created_at")}
+    out["ocean_inputs_pending"] = 0 if inp.get("status") == "done" else 1
+
+    comps = store.fetch("ocean_companies", "id",
+                        where='{input_id: {_eq: "%s"}}' % inp["id"])
+    out["ocean_companies"] = len(comps)
+    cids = [c["id"] for c in comps]
+    if not cids:
+        return out
+
+    dms = store.fetch("decision_makers", "id",
+                      where='{company_id: {_in: %s}}' % _id_in(cids))
+    out["decision_makers"] = len(dms)
+    dids = [d["id"] for d in dms]
+    if not dids:
+        return out
+
+    ecs = store.fetch("email_contacts", "email status",
+                      where='{decision_maker_id: {_in: %s}}' % _id_in(dids))
+    out["email_contacts"] = len(ecs)
+    out["emails_found"] = sum(1 for e in ecs if e.get("email"))
+    out["emails_sent"] = sum(1 for e in ecs if e.get("status") == "sent")
     return out
 
 
@@ -292,6 +314,7 @@ _GUI_HTML = """<!doctype html>
 
   <div class="card">
     <h2>Pipeline status <button class="ghost" style="float:right;padding:4px 10px" onclick="refreshStatus()">Refresh</button></h2>
+    <div id="scopelbl" style="font-size:12px;color:var(--muted);margin:0 0 10px">—</div>
     <div class="grid" id="stats"></div>
   </div>
 
@@ -330,9 +353,14 @@ async function refreshStatus(){
   try {
     const s = await api('/pipeline/status');
     const order = [['ocean_inputs_pending','Pending'],['ocean_companies','Companies'],
-                   ['decision_makers','People'],['email_contacts','Emails']];
+                   ['decision_makers','People'],['emails_found','Found'],
+                   ['emails_sent','Sent']];
     document.getElementById('stats').innerHTML = order.map(([k,lab]) =>
       `<div class="stat"><b>${s[k] ?? '–'}</b><span>${lab}</span></div>`).join('');
+    const sc = s.scope;
+    document.getElementById('scopelbl').textContent = sc
+      ? `Showing latest run: ${sc.seed_domain} · ${sc.status}`
+      : 'No runs yet';
   } catch(e){ msg('tokmsg', e.message, false); }
 }
 async function refreshSends(){
