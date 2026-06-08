@@ -21,6 +21,7 @@ Run in Docker / prod: see Dockerfile (gunicorn + uvicorn workers).
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
@@ -66,6 +67,10 @@ class InputCreate(BaseModel):
     seed_domain: str
     countries: List[str] = ["IN"]
     max_results: int = 10
+    # Optional per-run email (a picked template or a custom draft). When unset
+    # the pipeline falls back to the hardcoded default campaign copy.
+    email_subject: Optional[str] = None
+    email_body: Optional[str] = None
 
 
 class FollowupRequest(BaseModel):
@@ -76,12 +81,40 @@ class FollowupRequest(BaseModel):
     from_name: str = "Joy"
 
 
+class TemplateCreate(BaseModel):
+    name: str
+    subject: str
+    body: str
+
+
+class TemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    subject: Optional[str] = None
+    body: Optional[str] = None
+
+
 # --------------------------------------------------------------------------
 # Routes
 # --------------------------------------------------------------------------
+def _landing_html() -> str:
+    """Public marketing landing page (landing.html, sits next to this file)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "landing.html")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return "<h1>LeadsIQ</h1><p><a href='/app'>Open the app</a></p>"
+
+
 @app.get("/", include_in_schema=False)
-def root() -> HTMLResponse:
-    """Simple web dashboard for the pipeline."""
+def landing() -> HTMLResponse:
+    """Public landing page. The 'Get started' buttons link to /app."""
+    return HTMLResponse(_landing_html())
+
+
+@app.get("/app", include_in_schema=False)
+def dashboard() -> HTMLResponse:
+    """The product dashboard (was at / before the landing page existed)."""
     return HTMLResponse(_GUI_HTML)
 
 
@@ -173,16 +206,61 @@ def ocean_input_hook(payload: dict, bg: BackgroundTasks,
 @app.post("/inputs", status_code=201)
 def add_input(req: InputCreate, _: None = Depends(require_token)) -> dict:
     """Add a target seed domain to ocean_inputs. The Hasura event trigger then
-    runs the full pipeline (Ocean -> Prospeo -> EazyReach -> Brevo) for it."""
+    runs the full pipeline for it. Optionally carries a chosen email
+    (template or custom draft) used for the initial send."""
     store = HasuraStore()
-    row = store.insert_one("ocean_inputs", {
+    obj = {
         "seed_domain": req.seed_domain.strip(),
         "countries": req.countries,
         "max_results": req.max_results,
-    })
+    }
+    if req.email_subject:
+        obj["email_subject"] = req.email_subject
+    if req.email_body:
+        obj["email_body"] = req.email_body
+    row = store.insert_one("ocean_inputs", obj)
     return {"status": "created", "id": row.get("id"),
             "seed_domain": req.seed_domain.strip(),
             "note": "pipeline runs automatically via the Hasura event trigger"}
+
+
+# --------------------------------------------------------------------------
+# Email templates library (CRUD)
+# --------------------------------------------------------------------------
+@app.get("/templates")
+def list_templates(_: None = Depends(require_token)) -> list:
+    store = HasuraStore()
+    return store.fetch("templates", "id name subject body updated_at",
+                       order_by="{created_at: asc}")
+
+
+@app.post("/templates", status_code=201)
+def create_template(req: TemplateCreate, _: None = Depends(require_token)) -> dict:
+    store = HasuraStore()
+    return store.insert_one("templates", {
+        "name": req.name.strip(), "subject": req.subject, "body": req.body,
+    }, returning="id name subject body")
+
+
+@app.put("/templates/{tid}")
+def update_template(tid: str, req: TemplateUpdate,
+                    _: None = Depends(require_token)) -> dict:
+    store = HasuraStore()
+    changes = {k: v for k, v in {"name": req.name, "subject": req.subject,
+                                 "body": req.body}.items() if v is not None}
+    if not changes:
+        raise HTTPException(400, "nothing to update")
+    changes["updated_at"] = datetime.now(timezone.utc).isoformat()
+    return store.update_by_pk("templates", tid, changes,
+                              returning="id name subject body")
+
+
+@app.delete("/templates/{tid}")
+def delete_template(tid: str, _: None = Depends(require_token)) -> dict:
+    store = HasuraStore()
+    store.execute("mutation($id:uuid!){ delete_templates_by_pk(id:$id){ id } }",
+                  {"id": tid})
+    return {"status": "deleted", "id": tid}
 
 
 @app.get("/pipeline/sends")
@@ -200,10 +278,29 @@ def _id_in(ids: list) -> str:
     return "[" + ", ".join('"%s"' % i for i in ids) + "]"
 
 
+def _lifetime_totals(store: HasuraStore) -> dict:
+    """All-time (cumulative) counts across every run — never reset per run."""
+    q = """query {
+      runs: ocean_inputs_aggregate { aggregate { count } }
+      companies: ocean_companies_aggregate { aggregate { count } }
+      people: decision_makers_aggregate { aggregate { count } }
+      found: email_contacts_aggregate(where:{email:{_is_null:false}}) { aggregate { count } }
+      sent: email_contacts_aggregate(where:{status:{_eq:"sent"}}) { aggregate { count } }
+    }"""
+    try:
+        d = store.execute(q)
+        g = lambda k: (d.get(k) or {}).get("aggregate", {}).get("count", 0)
+        return {"runs": g("runs"), "companies": g("companies"),
+                "people": g("people"), "emails_found": g("found"),
+                "emails_sent": g("sent")}
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)[:200]}
+
+
 @app.get("/pipeline/status")
 def pipeline_status(_: None = Depends(require_token)) -> dict:
-    """Stage counts scoped to the MOST RECENT ocean_inputs row (the last run),
-    not lifetime totals. Walks input -> companies -> people -> emails by id."""
+    """Counts for the MOST RECENT run (per-run) AND cumulative all-time totals
+    (lifetime), so the dashboard shows both."""
     store = HasuraStore()
     cfg = {
         "DECISION_TITLES": os.getenv("DECISION_TITLES", "(unset)"),
@@ -211,7 +308,8 @@ def pipeline_status(_: None = Depends(require_token)) -> dict:
     }
     out = {"ocean_inputs_pending": 0, "ocean_companies": 0,
            "decision_makers": 0, "email_contacts": 0,
-           "emails_found": 0, "emails_sent": 0, "scope": None, "config": cfg}
+           "emails_found": 0, "emails_sent": 0, "scope": None,
+           "lifetime": _lifetime_totals(store), "config": cfg}
 
     latest = store.fetch("ocean_inputs", "id seed_domain status created_at",
                          order_by="{created_at: desc}", limit=1)
@@ -262,7 +360,13 @@ _GUI_HTML = """<!doctype html>
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
   .card h2 { font-size:14px; margin:0 0 12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
   label { font-size:12px; color:var(--muted); display:block; margin:8px 0 3px; }
-  input { background:#11141d; color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:inherit; width:100%; }
+  input, select, textarea { background:#11141d; color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:inherit; width:100%; }
+  textarea { resize:vertical; line-height:1.5; }
+  .tplrow { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .tplrow .nm { font-weight:600; }
+  .tplrow .sub { color:var(--muted); font-size:12px; }
+  .tplrow .acts { margin-left:auto; display:flex; gap:6px; }
+  .tplrow .acts button { padding:5px 11px; font-size:12px; }
   button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:9px 16px; font:inherit; font-weight:600; cursor:pointer; }
   button.ghost { background:transparent; border:1px solid var(--line); color:var(--txt); }
   button:disabled { opacity:.5; cursor:default; }
@@ -284,7 +388,6 @@ _GUI_HTML = """<!doctype html>
 <body>
 <header>
   <h1>Lead Pipeline</h1>
-  <span style="color:var(--muted);font-size:13px">Ocean → Prospeo → EazyReach → Brevo</span>
   <a href="/docs" style="margin-left:auto;font-size:13px">API docs</a>
 </header>
 <main>
@@ -304,8 +407,24 @@ _GUI_HTML = """<!doctype html>
       <div style="flex:3"><label>Company domain (seed)</label><input id="domain" placeholder="e.g. razorpay.com"/></div>
       <div><label>Country</label><input id="country" value="IN"/></div>
       <div><label>Max results</label><input id="max" type="number" value="10"/></div>
-      <button id="addbtn" onclick="addTarget()">Add &amp; Run</button>
     </div>
+    <label>Email to send</label>
+    <div class="row">
+      <div style="flex:1">
+        <select id="emailmode" onchange="onEmailMode()">
+          <option value="template">Pick a template</option>
+          <option value="custom">Write a custom draft</option>
+        </select>
+      </div>
+      <div style="flex:2" id="tplpickwrap"><select id="tplpick"></select></div>
+    </div>
+    <div id="customfields" style="display:none">
+      <label>Subject</label>
+      <input id="csubject" placeholder="Subject line"/>
+      <label>Body</label>
+      <textarea id="cbody" rows="6" placeholder="Hi {{contact.FIRSTNAME}}, ... (use {{contact.FIRSTNAME}} and {{contact.COMPANY}} for personalization)"></textarea>
+    </div>
+    <button id="addbtn" onclick="addTarget()" style="margin-top:14px">Add &amp; Run</button>
     <div class="msg" id="addmsg"></div>
     <p style="font-size:12px;color:var(--muted);margin:10px 0 0">
       Adding a domain runs the whole pipeline automatically and <b>sends real emails</b> to the contacts it finds.
@@ -313,8 +432,27 @@ _GUI_HTML = """<!doctype html>
   </div>
 
   <div class="card">
-    <h2>Pipeline status <button class="ghost" style="float:right;padding:4px 10px" onclick="refreshStatus()">Refresh</button></h2>
-    <div id="scopelbl" style="font-size:12px;color:var(--muted);margin:0 0 10px">—</div>
+    <h2>Email templates <button class="ghost" style="float:right;padding:4px 10px" onclick="newTemplate()">+ New template</button></h2>
+    <div id="tpllist"><span class="muted" style="color:var(--muted);font-size:13px">—</span></div>
+    <div id="tpleditor" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+      <input type="hidden" id="tplid"/>
+      <label>Name</label><input id="tplname" placeholder="e.g. SaaS founders — short pitch"/>
+      <label>Subject</label><input id="tplsubject" placeholder="Subject line"/>
+      <label>Body</label>
+      <textarea id="tplbody" rows="9" placeholder="Hi {{contact.FIRSTNAME}}, ..."></textarea>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button onclick="saveTemplate()">Save template</button>
+        <button class="ghost" onclick="cancelTemplate()">Cancel</button>
+      </div>
+      <div class="msg" id="tplmsg"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Analytics <button class="ghost" style="float:right;padding:4px 10px" onclick="refreshStatus()">Refresh</button></h2>
+    <div style="font-size:12px;color:var(--muted);margin:0 0 8px;font-weight:600">All-time (cumulative)</div>
+    <div class="grid" id="lifetime"></div>
+    <div id="scopelbl" style="font-size:12px;color:var(--muted);margin:18px 0 8px;font-weight:600">Latest run</div>
     <div class="grid" id="stats"></div>
   </div>
 
@@ -335,7 +473,7 @@ function saveToken(){
   TOKEN = document.getElementById('token').value.trim();
   localStorage.setItem('lp_token', TOKEN);
   msg('tokmsg', TOKEN ? 'Saved.' : 'Cleared.', true);
-  refreshStatus(); refreshSends();
+  refreshStatus(); refreshSends(); loadTemplates();
 }
 function msg(id, text, ok){
   const el = document.getElementById(id);
@@ -352,6 +490,13 @@ async function refreshStatus(){
   if(!TOKEN) return;
   try {
     const s = await api('/pipeline/status');
+    // All-time (cumulative) — never resets.
+    const lt = s.lifetime || {};
+    const ltOrder = [['runs','Runs'],['companies','Companies'],['people','People'],
+                     ['emails_found','Found'],['emails_sent','Sent']];
+    document.getElementById('lifetime').innerHTML = ltOrder.map(([k,lab]) =>
+      `<div class="stat"><b>${lt[k] ?? '–'}</b><span>${lab}</span></div>`).join('');
+    // Latest run.
     const order = [['ocean_inputs_pending','Pending'],['ocean_companies','Companies'],
                    ['decision_makers','People'],['emails_found','Found'],
                    ['emails_sent','Sent']];
@@ -359,8 +504,8 @@ async function refreshStatus(){
       `<div class="stat"><b>${s[k] ?? '–'}</b><span>${lab}</span></div>`).join('');
     const sc = s.scope;
     document.getElementById('scopelbl').textContent = sc
-      ? `Showing latest run: ${sc.seed_domain} · ${sc.status}`
-      : 'No runs yet';
+      ? `Latest run: ${sc.seed_domain} · ${sc.status}`
+      : 'Latest run — none yet';
   } catch(e){ msg('tokmsg', e.message, false); }
 }
 async function refreshSends(){
@@ -380,12 +525,26 @@ async function addTarget(){
   if(!TOKEN){ msg('addmsg','Save your token first.', false); return; }
   const domain = document.getElementById('domain').value.trim();
   if(!domain){ msg('addmsg','Enter a domain.', false); return; }
+  // Resolve the email: a picked template or a custom draft.
+  let email_subject=null, email_body=null;
+  const mode = document.getElementById('emailmode').value;
+  if(mode==='custom'){
+    email_subject = document.getElementById('csubject').value.trim();
+    email_body = document.getElementById('cbody').value.trim();
+    if(!email_subject || !email_body){ msg('addmsg','Enter a subject and body for the custom draft.', false); return; }
+  } else {
+    const tid = document.getElementById('tplpick').value;
+    const t = TEMPLATES.find(x=>x.id===tid);
+    if(!t){ msg('addmsg','Pick a template, or create one in Email templates below.', false); return; }
+    email_subject = t.subject; email_body = t.body;
+  }
   const btn = document.getElementById('addbtn'); btn.disabled = true;
   try {
     const body = JSON.stringify({
       seed_domain: domain,
       countries: [document.getElementById('country').value.trim() || 'IN'],
-      max_results: parseInt(document.getElementById('max').value||'10',10)
+      max_results: parseInt(document.getElementById('max').value||'10',10),
+      email_subject, email_body
     });
     const res = await api('/inputs', {method:'POST', body});
     msg('addmsg', 'Added '+res.seed_domain+' — pipeline running. Watch status & sends below.', true);
@@ -394,9 +553,65 @@ async function addTarget(){
   } catch(e){ msg('addmsg', e.message, false); }
   finally { btn.disabled = false; }
 }
+
+/* ---- Email templates ---- */
+let TEMPLATES = [];
+function onEmailMode(){
+  const m = document.getElementById('emailmode').value;
+  document.getElementById('tplpickwrap').style.display = m==='template' ? '' : 'none';
+  document.getElementById('customfields').style.display = m==='custom' ? '' : 'none';
+}
+async function loadTemplates(){
+  if(!TOKEN) return;
+  try {
+    TEMPLATES = await api('/templates');
+    const pick = document.getElementById('tplpick');
+    pick.innerHTML = TEMPLATES.length
+      ? TEMPLATES.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')
+      : '<option value="">No templates — create one below</option>';
+    const list = document.getElementById('tpllist');
+    list.innerHTML = TEMPLATES.length ? TEMPLATES.map(t=>
+      `<div class="tplrow"><div><div class="nm">${esc(t.name)}</div><div class="sub">${esc(t.subject)}</div></div>
+       <div class="acts"><button class="ghost" onclick="editTemplate('${t.id}')">Edit</button>
+       <button class="ghost" onclick="deleteTemplate('${t.id}')">Delete</button></div></div>`).join('')
+      : '<span style="color:var(--muted);font-size:13px">No templates yet — click "+ New template".</span>';
+  } catch(e){ msg('tplmsg', e.message, false); }
+}
+function newTemplate(){
+  ['tplid','tplname','tplsubject','tplbody'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('tpleditor').style.display='';
+  msg('tplmsg','',true);
+}
+function editTemplate(id){
+  const t = TEMPLATES.find(x=>x.id===id); if(!t) return;
+  document.getElementById('tplid').value=t.id;
+  document.getElementById('tplname').value=t.name;
+  document.getElementById('tplsubject').value=t.subject;
+  document.getElementById('tplbody').value=t.body;
+  document.getElementById('tpleditor').style.display='';
+}
+function cancelTemplate(){ document.getElementById('tpleditor').style.display='none'; }
+async function saveTemplate(){
+  const id = document.getElementById('tplid').value;
+  const name = document.getElementById('tplname').value.trim();
+  const subject = document.getElementById('tplsubject').value.trim();
+  const bodyv = document.getElementById('tplbody').value;
+  if(!name || !subject || !bodyv.trim()){ msg('tplmsg','Name, subject and body are required.', false); return; }
+  try {
+    if(id){ await api('/templates/'+id, {method:'PUT', body: JSON.stringify({name, subject, body: bodyv})}); }
+    else  { await api('/templates', {method:'POST', body: JSON.stringify({name, subject, body: bodyv})}); }
+    document.getElementById('tpleditor').style.display='none';
+    loadTemplates();
+  } catch(e){ msg('tplmsg', e.message, false); }
+}
+async function deleteTemplate(id){
+  if(!confirm('Delete this template?')) return;
+  try { await api('/templates/'+id, {method:'DELETE'}); loadTemplates(); }
+  catch(e){ msg('tplmsg', e.message, false); }
+}
 function esc(s){ return (s||'').replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-if(TOKEN){ refreshStatus(); refreshSends(); }
+if(TOKEN){ refreshStatus(); refreshSends(); loadTemplates(); }
 setInterval(()=>{ if(TOKEN) refreshStatus(); }, 8000);
 </script>
 </body>

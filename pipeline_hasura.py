@@ -167,7 +167,8 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
              else '{status: {_eq: "pending"}}')
     inputs = store.fetch(
         "ocean_inputs",
-        "id seed_domain countries company_sizes max_results",
+        "id seed_domain countries company_sizes max_results "
+        "email_subject email_body",
         where=where,
         order_by='{created_at: asc}',
         limit=limit or None)
@@ -184,6 +185,9 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
             company_sizes=inp.get("company_sizes") or [],
             limit=int(inp.get("max_results") or 10),
         )
+        # Email copy for this run: chosen template/draft, else hardcoded default.
+        run_subject = inp.get("email_subject") or CAMPAIGN_SUBJECT
+        run_body = inp.get("email_body") or CAMPAIGN_TEXT
         # 1) OCEAN
         try:
             companies = ocean.find_companies(flt)
@@ -284,14 +288,15 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
                     try:
                         msg_id = brevo_client.send_message(
                             sender=sender, to_email=email,
-                            subject=CAMPAIGN_SUBJECT, body=CAMPAIGN_TEXT,
+                            subject=run_subject, body=run_body,
                             html=False)
                     except Exception as e:  # noqa: BLE001
                         print(f"      [brevo] {email}: SEND FAILED {e}")
                         store.update_by_pk("email_contacts", contact_id,
                                            {"status": "error", "error": str(e)[:500]})
                         continue
-                    _log_send(store, sender, email, msg_id)
+                    _log_send(store, sender, email, msg_id,
+                              subject=run_subject, body=run_body)
                     store.update_by_pk("email_contacts", contact_id,
                                        {"status": "sent"})
                     totals["sent"] += 1
