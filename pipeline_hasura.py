@@ -167,7 +167,7 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
              else '{status: {_eq: "pending"}}')
     inputs = store.fetch(
         "ocean_inputs",
-        "id seed_domain countries company_sizes max_results "
+        "id seed_domain seed_domains countries company_sizes max_results "
         "email_subject email_body",
         where=where,
         order_by='{created_at: asc}',
@@ -179,8 +179,10 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
 
     for inp in inputs:
         seed = inp["seed_domain"]
+        # One or more seed domains feed a single Ocean lookalike search.
+        seeds = inp.get("seed_domains") or ([seed] if seed else [])
         flt = SearchFilter(
-            lookalike_domains=[seed],
+            lookalike_domains=seeds,
             countries=inp.get("countries") or [],
             company_sizes=inp.get("company_sizes") or [],
             limit=int(inp.get("max_results") or 10),
@@ -196,7 +198,7 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
             store.update_by_pk("ocean_inputs", inp["id"],
                                {"status": "error", "error": str(e)[:500]})
             continue
-        print(f"[ocean] {seed}: {len(companies)} companies")
+        print(f"[ocean] {', '.join(seeds)}: {len(companies)} companies")
 
         for c in companies:
             company_row = store.insert_one("ocean_companies", {

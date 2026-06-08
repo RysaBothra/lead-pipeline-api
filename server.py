@@ -64,7 +64,10 @@ class PipelineRunRequest(BaseModel):
 
 
 class InputCreate(BaseModel):
-    seed_domain: str
+    # One or more seed domains for a single Ocean lookalike search (1-10).
+    # seed_domains is preferred; seed_domain stays for backward compatibility.
+    seed_domain: Optional[str] = None
+    seed_domains: Optional[List[str]] = None
     countries: List[str] = ["IN"]
     max_results: int = 10
     # Optional per-run email (a picked template or a custom draft). When unset
@@ -205,12 +208,17 @@ def ocean_input_hook(payload: dict, bg: BackgroundTasks,
 
 @app.post("/inputs", status_code=201)
 def add_input(req: InputCreate, _: None = Depends(require_token)) -> dict:
-    """Add a target seed domain to ocean_inputs. The Hasura event trigger then
-    runs the full pipeline for it. Optionally carries a chosen email
-    (template or custom draft) used for the initial send."""
+    """Add a run to ocean_inputs (one or more seed domains feeding a single
+    Ocean lookalike search). The Hasura event trigger then runs the full
+    pipeline. Optionally carries a chosen email (template or custom draft)."""
+    raw = req.seed_domains or ([req.seed_domain] if req.seed_domain else [])
+    domains = [d.strip() for d in raw if d and d.strip()][:10]  # Ocean caps at 10
+    if not domains:
+        raise HTTPException(400, "at least one seed domain is required")
     store = HasuraStore()
     obj = {
-        "seed_domain": req.seed_domain.strip(),
+        "seed_domain": domains[0],        # primary (display + back-compat)
+        "seed_domains": domains,          # full list -> Ocean lookalikeDomains
         "countries": req.countries,
         "max_results": req.max_results,
     }
@@ -220,7 +228,7 @@ def add_input(req: InputCreate, _: None = Depends(require_token)) -> dict:
         obj["email_body"] = req.email_body
     row = store.insert_one("ocean_inputs", obj)
     return {"status": "created", "id": row.get("id"),
-            "seed_domain": req.seed_domain.strip(),
+            "seed_domains": domains,
             "note": "pipeline runs automatically via the Hasura event trigger"}
 
 
@@ -403,8 +411,12 @@ _GUI_HTML = """<!doctype html>
 
   <div class="card">
     <h2>Add target &amp; run</h2>
-    <div class="row">
-      <div style="flex:3"><label>Company domain (seed)</label><input id="domain" placeholder="e.g. razorpay.com"/></div>
+    <label>Company domains (seeds) — add 1–10; more seeds give Ocean a sharper match</label>
+    <div id="domains">
+      <input class="domain-in" placeholder="e.g. razorpay.com"/>
+    </div>
+    <button class="ghost" type="button" onclick="addDomainField()" style="margin-top:8px;padding:6px 12px;font-size:13px">+ Add another domain</button>
+    <div class="row" style="margin-top:12px">
       <div><label>Country</label><input id="country" value="IN"/></div>
       <div><label>Max results</label><input id="max" type="number" value="10"/></div>
     </div>
@@ -521,10 +533,26 @@ async function refreshSends(){
     }).join('');
   } catch(e){ msg('tokmsg', e.message, false); }
 }
+function addDomainField(){
+  const wrap = document.getElementById('domains');
+  if(wrap.querySelectorAll('.domain-in').length >= 10){ msg('addmsg','Up to 10 seed domains.', false); return; }
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;margin-top:8px';
+  row.innerHTML = '<input class="domain-in" placeholder="another-domain.com"/>'
+    + '<button class="ghost" type="button" title="remove" onclick="this.parentNode.remove()" style="padding:5px 13px">&times;</button>';
+  wrap.appendChild(row);
+}
+function getDomains(){
+  return Array.from(document.querySelectorAll('.domain-in'))
+    .map(i=>i.value.trim()).filter(Boolean);
+}
+function resetDomains(){
+  document.getElementById('domains').innerHTML = '<input class="domain-in" placeholder="e.g. razorpay.com"/>';
+}
 async function addTarget(){
   if(!TOKEN){ msg('addmsg','Save your token first.', false); return; }
-  const domain = document.getElementById('domain').value.trim();
-  if(!domain){ msg('addmsg','Enter a domain.', false); return; }
+  const domains = getDomains();
+  if(!domains.length){ msg('addmsg','Enter at least one domain.', false); return; }
   // Resolve the email: a picked template or a custom draft.
   let email_subject=null, email_body=null;
   const mode = document.getElementById('emailmode').value;
@@ -541,14 +569,14 @@ async function addTarget(){
   const btn = document.getElementById('addbtn'); btn.disabled = true;
   try {
     const body = JSON.stringify({
-      seed_domain: domain,
+      seed_domains: domains,
       countries: [document.getElementById('country').value.trim() || 'IN'],
       max_results: parseInt(document.getElementById('max').value||'10',10),
       email_subject, email_body
     });
     const res = await api('/inputs', {method:'POST', body});
-    msg('addmsg', 'Added '+res.seed_domain+' — pipeline running. Watch status & sends below.', true);
-    document.getElementById('domain').value='';
+    msg('addmsg', 'Added '+(res.seed_domains||[]).join(', ')+' — pipeline running. Watch status & sends below.', true);
+    resetDomains();
     setTimeout(refreshStatus, 1500);
   } catch(e){ msg('addmsg', e.message, false); }
   finally { btn.disabled = false; }
