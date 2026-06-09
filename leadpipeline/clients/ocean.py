@@ -13,11 +13,16 @@ companies like the ones you want via `lookalike_domains`.
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from ..http_client import HTTPClient
 from ..models import Company
+
+# Error fragments that mean "rotate to the next Ocean key" (rate limit / quota).
+_OCEAN_ROTATE = ("429", "402", "403", "rate", "Rate", "limit", "Limit",
+                 "quota", "Quota", "credit", "Credit", "exhaust")
 
 # Fields requested from Ocean for each company.
 _FIELDS = [
@@ -45,13 +50,42 @@ class SearchFilter:
 
 
 class OceanClient:
-    def __init__(self, api_key: str, rate_per_sec: float = 5.0):
-        self.api_key = (api_key or "").strip()
+    def __init__(self, api_key, rate_per_sec: float = 5.0):
+        """api_key may be a single key (str) or a pool (list) to rotate through:
+        round-robin per call, failing over to the next key on rate-limit/quota.
+        The x-api-token header is set per request, not globally."""
+        if isinstance(api_key, (list, tuple)):
+            keys = [str(k).strip() for k in api_key if k and str(k).strip()]
+        else:
+            keys = [api_key.strip()] if api_key and api_key.strip() else []
+        seen = set()
+        self.keys = [k for k in keys if not (k in seen or seen.add(k))]
+        self.api_key = self.keys[0] if self.keys else ""   # back-compat attr
+        self._idx = 0
         self.api = HTTPClient(
-            "https://api.ocean.io/v3",
-            {"x-api-token": self.api_key},
-            rate_per_sec=rate_per_sec,
-        )
+            "https://api.ocean.io/v3", {}, rate_per_sec=rate_per_sec)
+
+    def _post(self, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.keys:
+            raise RuntimeError("no Ocean API keys configured")
+        n = len(self.keys)
+        delay = 2.0
+        last: Optional[Exception] = None
+        for _ in range(n + 4):
+            key = self.keys[self._idx % n]
+            self._idx = (self._idx + 1) % n
+            try:
+                return self.api.do_json("POST", path, body,
+                                        extra_headers={"x-api-token": key}) or {}
+            except RuntimeError as e:
+                last, msg = e, str(e)
+                if any(s in msg for s in _OCEAN_ROTATE):
+                    if "429" in msg or "ate limit" in msg:
+                        time.sleep(delay)
+                        delay = min(delay * 2, 20.0)
+                    continue        # rotate to next key
+                raise               # real error — bubble up
+        raise last or RuntimeError("Ocean: all keys exhausted or rate-limited")
 
     def find_companies(self, f: SearchFilter) -> List[Company]:
         size = f.limit if 0 < f.limit <= 10000 else 10
@@ -76,7 +110,7 @@ class OceanClient:
             "fields": _FIELDS,
         }
 
-        resp = self.api.do_json("POST", "/search/companies", body) or {}
+        resp = self._post("/search/companies", body)
 
         rows = resp.get("companies") or resp.get("results") or resp.get("data") or []
         out: List[Company] = []

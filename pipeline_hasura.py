@@ -93,6 +93,26 @@ def _best_email(resp: dict) -> Tuple[str, bool]:
     return em, (v == "verified")
 
 
+def _ocean_keys(store: HasuraStore) -> List[str]:
+    """Active Ocean keys to rotate through. Falls back to OCEAN_API_KEY env."""
+    try:
+        rows = store.fetch("ocean_keys", "api_key",
+                           where='{is_active: {_eq: true}}',
+                           order_by='{created_at: asc}')
+        keys = [(r.get("api_key") or "").strip() for r in rows]
+        keys = [k for k in keys if k]
+    except Exception:  # noqa: BLE001
+        keys = []
+    if not keys:
+        env_key = (os.getenv("OCEAN_API_KEY") or "").strip()
+        if env_key:
+            keys = [env_key]
+    if not keys:
+        raise RuntimeError("no Ocean keys: add rows to ocean_keys or set "
+                           "OCEAN_API_KEY")
+    return keys
+
+
 def _prospeo_keys(store: HasuraStore) -> List[str]:
     """Active Prospeo keys ordered by remaining credits (most first) so the
     pipeline auto-uses the richest key and fails over as keys deplete. Depleted
@@ -172,7 +192,7 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
 
     store = HasuraStore()  # raises if HASURA_GRAPHQL_URL unset
 
-    ocean = OceanClient(_env("OCEAN_API_KEY"))
+    ocean = OceanClient(_ocean_keys(store))
     prospeo = ProspeoClient(_prospeo_keys(store))
     eazy = EazyReachClient(_env("EAZYREACH_CLIENT_ID"),
                            _env("EAZYREACH_CLIENT_SECRET"))

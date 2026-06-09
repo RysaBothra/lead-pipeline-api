@@ -2,6 +2,8 @@
 .env
 setenv.ps1
 brevo_keys.json
+# API key text files (ocean/brevo/prospeo) loaded by sync_keys.py
+keys/
 
 # Python
 .venv/
