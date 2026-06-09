@@ -69,31 +69,53 @@ def _extract_email(resp: Dict[str, Any]) -> Tuple[str, bool]:
     return (email or ""), verified
 
 
-class ProspeoClient:
-    def __init__(self, api_key: str, rate_per_sec: float = 1.0):
-        self.api_key = (api_key or "").strip()
-        self.api = HTTPClient(
-            "https://api.prospeo.io",
-            {"X-KEY": self.api_key},
-            rate_per_sec=rate_per_sec,
-        )
+# Error fragments that mean "this key is tapped out" — rotate to the next one.
+_QUOTA_SIGNALS = ("INSUFFICIENT", "credit", "Credit", "QUOTA", "quota",
+                  "PAYMENT", "Not enough", "NO_CREDIT", "402")
 
-    def _post(self, path: str, body: Dict[str, Any],
-              attempts: int = 5) -> Dict[str, Any]:
-        """POST with backoff on Prospeo's rate limit, which it returns as an
-        HTTP 400 body {"error":true,"error_code":"Rate limit exceeded"} — the
-        HTTPClient's normal 429 retry doesn't catch that status."""
+
+class ProspeoClient:
+    def __init__(self, api_key, rate_per_sec: float = 1.0):
+        """api_key may be a single key (str) or a pool of keys (list) to rotate
+        through — round-robin per call, with failover when a key is rate-limited
+        or out of credits. The X-KEY header is set per request, not globally."""
+        if isinstance(api_key, (list, tuple)):
+            keys = [str(k).strip() for k in api_key if k and str(k).strip()]
+        else:
+            keys = [api_key.strip()] if api_key and api_key.strip() else []
+        # de-dup, preserve order
+        seen = set()
+        self.keys = [k for k in keys if not (k in seen or seen.add(k))]
+        self.api_key = self.keys[0] if self.keys else ""   # back-compat attr
+        self._idx = 0
+        self.api = HTTPClient(
+            "https://api.prospeo.io", {}, rate_per_sec=rate_per_sec)
+
+    def _post(self, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
+        """POST rotating across the key pool. Round-robins per call; on a
+        rate-limit (HTTP 400 'Rate limit exceeded') or out-of-credits error,
+        rotates to the next key and retries (back off only for rate limits)."""
+        if not self.keys:
+            raise RuntimeError("no Prospeo API keys configured")
+        n = len(self.keys)
         delay = 2.0
-        for i in range(attempts):
+        last: Optional[Exception] = None
+        for _ in range(n + 4):  # cover every key plus a few rate-limit backoffs
+            key = self.keys[self._idx % n]
+            self._idx = (self._idx + 1) % n   # advance for the next call too
             try:
-                return self.api.do_json("POST", path, body) or {}
+                return self.api.do_json("POST", path, body,
+                                        extra_headers={"X-KEY": key}) or {}
             except RuntimeError as e:
-                if "Rate limit" in str(e) and i < attempts - 1:
+                last, msg = e, str(e)
+                if "Rate limit" in msg:
                     time.sleep(delay)
-                    delay = min(delay * 2, 30.0)
-                    continue
-                raise
-        return {}
+                    delay = min(delay * 2, 20.0)
+                    continue        # next key (already advanced)
+                if any(s in msg for s in _QUOTA_SIGNALS):
+                    continue        # this key is exhausted — try the next
+                raise               # real error (incl. NO_RESULTS) — bubble up
+        raise last or RuntimeError("Prospeo: all keys exhausted or rate-limited")
 
     def find_email_by_linkedin(self, linkedin_url: str) -> Tuple[str, bool]:
         """Resolve a work email from a LinkedIn profile URL via Enrich Person.

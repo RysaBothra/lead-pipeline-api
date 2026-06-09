@@ -96,6 +96,11 @@ class TemplateUpdate(BaseModel):
     body: Optional[str] = None
 
 
+class ProspeoKeysAdd(BaseModel):
+    api_keys: List[str]          # one or more keys (bulk paste supported)
+    label: Optional[str] = None
+
+
 # --------------------------------------------------------------------------
 # Routes
 # --------------------------------------------------------------------------
@@ -269,6 +274,69 @@ def delete_template(tid: str, _: None = Depends(require_token)) -> dict:
     store.execute("mutation($id:uuid!){ delete_templates_by_pk(id:$id){ id } }",
                   {"id": tid})
     return {"status": "deleted", "id": tid}
+
+
+# --------------------------------------------------------------------------
+# Prospeo API key pool (rotation) — mirrors brevo_keys
+# --------------------------------------------------------------------------
+def _mask_key(k: str) -> str:
+    k = k or ""
+    return ("…" + k[-4:]) if len(k) > 4 else "…"
+
+
+@app.get("/prospeo-keys")
+def list_prospeo_keys(_: None = Depends(require_token)) -> list:
+    """List Prospeo keys (masked — the full key is never sent to the browser)."""
+    store = HasuraStore()
+    rows = store.fetch("prospeo_keys", "id label is_active api_key created_at",
+                       order_by="{created_at: asc}")
+    for r in rows:
+        r["api_key"] = _mask_key(r.get("api_key") or "")
+    return rows
+
+
+@app.post("/prospeo-keys", status_code=201)
+def add_prospeo_keys(req: ProspeoKeysAdd, _: None = Depends(require_token)) -> dict:
+    """Add one or more keys to the rotation pool. Skips duplicates."""
+    keys = [k.strip() for k in (req.api_keys or []) if k and k.strip()]
+    if not keys:
+        raise HTTPException(400, "no keys provided")
+    store = HasuraStore()
+    label = (req.label or "").strip() or None
+    added, dupes = 0, 0
+    for k in keys:
+        try:
+            store.insert_one("prospeo_keys", {"api_key": k, "label": label})
+            added += 1
+        except RuntimeError as e:
+            if "Uniqueness" in str(e) or "duplicate" in str(e):
+                dupes += 1
+            else:
+                raise
+    return {"status": "added", "added": added, "duplicates": dupes}
+
+
+@app.patch("/prospeo-keys/{kid}")
+def toggle_prospeo_key(kid: str, _: None = Depends(require_token)) -> dict:
+    """Pause/activate a key (toggles is_active)."""
+    store = HasuraStore()
+    cur = store.execute(
+        "query($id:uuid!){ prospeo_keys_by_pk(id:$id){ is_active } }",
+        {"id": kid}).get("prospeo_keys_by_pk")
+    if not cur:
+        raise HTTPException(404, "key not found")
+    new = not cur["is_active"]
+    store.update_by_pk("prospeo_keys", kid, {"is_active": new})
+    return {"id": kid, "is_active": new}
+
+
+@app.delete("/prospeo-keys/{kid}")
+def delete_prospeo_key(kid: str, _: None = Depends(require_token)) -> dict:
+    store = HasuraStore()
+    store.execute(
+        "mutation($id:uuid!){ delete_prospeo_keys_by_pk(id:$id){ id } }",
+        {"id": kid})
+    return {"status": "deleted", "id": kid}
 
 
 @app.get("/pipeline/sends")
@@ -461,6 +529,18 @@ _GUI_HTML = """<!doctype html>
   </div>
 
   <div class="card">
+    <h2>Prospeo API keys (rotation)</h2>
+    <div id="pkeylist"><span style="color:var(--muted);font-size:13px">—</span></div>
+    <label style="margin-top:12px">Add keys (one per line — paste as many as you like)</label>
+    <textarea id="pkeyinput" rows="3" placeholder="pk_abc123...&#10;pk_def456..."></textarea>
+    <button onclick="addProspeoKeys()" style="margin-top:8px">Add keys</button>
+    <div class="msg" id="pkeymsg"></div>
+    <p style="font-size:12px;color:var(--muted);margin:8px 0 0">
+      Calls rotate across active keys (round-robin) and fail over to the next key when one is rate-limited or out of credits. Falls back to the <code>PROSPEO_API_KEY</code> env var if the pool is empty.
+    </p>
+  </div>
+
+  <div class="card">
     <h2>Analytics <button class="ghost" style="float:right;padding:4px 10px" onclick="refreshStatus()">Refresh</button></h2>
     <div style="font-size:12px;color:var(--muted);margin:0 0 8px;font-weight:600">All-time (cumulative)</div>
     <div class="grid" id="lifetime"></div>
@@ -485,7 +565,7 @@ function saveToken(){
   TOKEN = document.getElementById('token').value.trim();
   localStorage.setItem('lp_token', TOKEN);
   msg('tokmsg', TOKEN ? 'Saved.' : 'Cleared.', true);
-  refreshStatus(); refreshSends(); loadTemplates();
+  refreshStatus(); refreshSends(); loadTemplates(); loadProspeoKeys();
 }
 function msg(id, text, ok){
   const el = document.getElementById(id);
@@ -637,9 +717,45 @@ async function deleteTemplate(id){
   try { await api('/templates/'+id, {method:'DELETE'}); loadTemplates(); }
   catch(e){ msg('tplmsg', e.message, false); }
 }
+/* ---- Prospeo API keys (rotation) ---- */
+async function loadProspeoKeys(){
+  if(!TOKEN) return;
+  try {
+    const rows = await api('/prospeo-keys');
+    const el = document.getElementById('pkeylist');
+    el.innerHTML = rows.length ? rows.map(r=>
+      `<div class="tplrow"><div><div class="nm"><code>${esc(r.api_key)}</code>${r.label?(' · '+esc(r.label)):''}</div>
+       <div class="sub">${r.is_active?'active':'paused'}</div></div>
+       <div class="acts">
+         <button class="ghost" onclick="toggleProspeoKey('${r.id}')">${r.is_active?'Pause':'Activate'}</button>
+         <button class="ghost" onclick="deleteProspeoKey('${r.id}')">Delete</button>
+       </div></div>`).join('')
+      : '<span style="color:var(--muted);font-size:13px">No keys in the pool yet — add some below.</span>';
+  } catch(e){ msg('pkeymsg', e.message, false); }
+}
+async function addProspeoKeys(){
+  const raw = document.getElementById('pkeyinput').value;
+  const keys = raw.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+  if(!keys.length){ msg('pkeymsg','Paste at least one key.', false); return; }
+  try {
+    const res = await api('/prospeo-keys', {method:'POST', body: JSON.stringify({api_keys: keys})});
+    msg('pkeymsg', `Added ${res.added}`+(res.duplicates?` (${res.duplicates} already existed)`:'')+'.', true);
+    document.getElementById('pkeyinput').value='';
+    loadProspeoKeys();
+  } catch(e){ msg('pkeymsg', e.message, false); }
+}
+async function toggleProspeoKey(id){
+  try { await api('/prospeo-keys/'+id, {method:'PATCH'}); loadProspeoKeys(); }
+  catch(e){ msg('pkeymsg', e.message, false); }
+}
+async function deleteProspeoKey(id){
+  if(!confirm('Delete this key from the pool?')) return;
+  try { await api('/prospeo-keys/'+id, {method:'DELETE'}); loadProspeoKeys(); }
+  catch(e){ msg('pkeymsg', e.message, false); }
+}
 function esc(s){ return (s||'').replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-if(TOKEN){ refreshStatus(); refreshSends(); loadTemplates(); }
+if(TOKEN){ refreshStatus(); refreshSends(); loadTemplates(); loadProspeoKeys(); }
 setInterval(()=>{ if(TOKEN) refreshStatus(); }, 8000);
 </script>
 </body>

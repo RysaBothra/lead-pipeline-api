@@ -93,6 +93,27 @@ def _best_email(resp: dict) -> Tuple[str, bool]:
     return em, (v == "verified")
 
 
+def _prospeo_keys(store: HasuraStore) -> List[str]:
+    """Active Prospeo keys to rotate through. Falls back to the single
+    PROSPEO_API_KEY env var when the prospeo_keys table is empty."""
+    try:
+        rows = store.fetch("prospeo_keys", "api_key",
+                           where='{is_active: {_eq: true}}',
+                           order_by='{created_at: asc}')
+        keys = [(r.get("api_key") or "").strip() for r in rows]
+        keys = [k for k in keys if k]
+    except Exception:  # noqa: BLE001  (table missing / not tracked)
+        keys = []
+    if not keys:
+        env_key = (os.getenv("PROSPEO_API_KEY") or "").strip()
+        if env_key:
+            keys = [env_key]
+    if not keys:
+        raise RuntimeError("no Prospeo keys: add rows to prospeo_keys or set "
+                           "PROSPEO_API_KEY")
+    return keys
+
+
 def pick_brevo_account(store: HasuraStore) -> Tuple[str, List[Dict]]:
     """Read brevo_keys from Hasura, return (api_key, active_senders) for the
     account with the most remaining send credits."""
@@ -139,7 +160,7 @@ def run_pipeline(do_send: bool = False, limit: int = 0,
     store = HasuraStore()  # raises if HASURA_GRAPHQL_URL unset
 
     ocean = OceanClient(_env("OCEAN_API_KEY"))
-    prospeo = ProspeoClient(_env("PROSPEO_API_KEY"))
+    prospeo = ProspeoClient(_prospeo_keys(store))
     eazy = EazyReachClient(_env("EAZYREACH_CLIENT_ID"),
                            _env("EAZYREACH_CLIENT_SECRET"))
 
