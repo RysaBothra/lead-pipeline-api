@@ -19,6 +19,26 @@ import os
 
 from leadpipeline.hasura_store import HasuraStore
 
+
+def _load_dotenv(path: str = ".env") -> None:
+    """Load KEY=VALUE lines from .env into the environment (without overriding
+    anything already set), so you don't need to run setenv.ps1 first."""
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path, encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if not ln or ln.startswith("#") or "=" not in ln:
+                    continue
+                k, _, v = ln.partition("=")
+                k = k.strip()
+                v = v.strip().strip('"').strip("'")
+                if k and k not in os.environ:
+                    os.environ[k] = v
+    except OSError:
+        pass
+
 # file -> Hasura table
 FILES = {
     "ocean_keys":   os.path.join("keys", "ocean.txt"),
@@ -45,6 +65,7 @@ def read_keys(path: str):
 
 
 def main() -> None:
+    _load_dotenv()         # pull HASURA_* from .env if not already in the env
     store = HasuraStore()  # raises if HASURA_GRAPHQL_URL is unset
     print("Syncing key files -> Hasura\n")
     for table, path in FILES.items():
