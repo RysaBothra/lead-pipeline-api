@@ -35,7 +35,15 @@ from mailer_api import send as _mailer_send
 from leadpipeline.hasura_store import HasuraStore
 import pipeline_hasura
 
-app = FastAPI(title="Lead Pipeline API")
+# Public API docs (Swagger/ReDoc/openapi.json) are OFF by default so the API
+# surface isn't advertised publicly. Set ENABLE_DOCS=1 to turn them back on.
+_DOCS_ON = os.getenv("ENABLE_DOCS", "").strip() == "1"
+app = FastAPI(
+    title="Lead Pipeline API",
+    docs_url="/docs" if _DOCS_ON else None,
+    redoc_url="/redoc" if _DOCS_ON else None,
+    openapi_url="/openapi.json" if _DOCS_ON else None,
+)
 
 # Serve brand assets (logo mark, etc.) from ./static at /static.
 _STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -469,8 +477,8 @@ _GUI_HTML = """<!doctype html>
 </head>
 <body>
 <header>
-  <h1>Lead Pipeline</h1>
-  <a href="/docs" style="margin-left:auto;font-size:13px">API docs</a>
+  <img src="/static/mark.png" style="height:26px;width:auto"/>
+  <h1>LeadsIQ</h1>
 </header>
 <main>
 
