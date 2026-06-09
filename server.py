@@ -26,6 +26,7 @@ from typing import List, Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 # Reuse the already-built, tested pieces.
@@ -35,6 +36,11 @@ from leadpipeline.hasura_store import HasuraStore
 import pipeline_hasura
 
 app = FastAPI(title="Lead Pipeline API")
+
+# Serve brand assets (logo mark, etc.) from ./static at /static.
+_STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+if os.path.isdir(_STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 API_TOKEN = (os.getenv("API_TOKEN") or "").strip()
 

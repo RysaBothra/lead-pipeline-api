@@ -7,9 +7,9 @@
 <meta name="description" content="Drop in your website. LeadsIQ finds the right companies, the real decision-makers, writes the outreach, and books you replies. You only pay when someone's interested."/>
 <style>
   :root{
-    --bg:#ffffff; --ink:#0e1320; --muted:#5b6577; --line:#e7e9f0;
-    --soft:#f6f7fb; --accent:#5b3df5; --accent-2:#7b5cff; --ok:#12b886;
-    --shadow:0 10px 30px rgba(20,24,40,.08);
+    --bg:#ffffff; --ink:#140a2e; --muted:#5b6577; --line:#ece9f3;
+    --soft:#faf8fe; --accent:#7c3aed; --accent-2:#c026d3; --ok:#12b886;
+    --shadow:0 10px 30px rgba(60,20,90,.10);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
@@ -20,7 +20,7 @@
   .wrap{max-width:1140px;margin:0 auto;padding:0 22px}
   .btn{display:inline-block;border-radius:11px;padding:13px 20px;font-weight:650;
     font-size:15px;cursor:pointer;border:1px solid transparent;transition:.15s}
-  .btn-primary{background:var(--accent);color:#fff;box-shadow:0 8px 20px rgba(91,61,245,.28)}
+  .btn-primary{background:var(--accent);color:#fff;box-shadow:0 8px 20px rgba(124,58,237,.28)}
   .btn-primary:hover{background:#4a2fe0;transform:translateY(-1px)}
   .btn-ghost{background:#fff;border-color:var(--line);color:var(--ink)}
   .btn-ghost:hover{border-color:#c9cee0}
@@ -37,9 +37,12 @@
   header{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.82);
     backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--line)}
   nav{display:flex;align-items:center;gap:26px;height:66px}
-  .brand{font-weight:800;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px}
+  .brand{font-weight:800;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:2px;color:var(--ink)}
+  .markimg{height:32px;width:auto;display:inline-block}
   .logo{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
-    display:inline-block;box-shadow:0 4px 12px rgba(91,61,245,.35)}
+    display:inline-block;box-shadow:0 4px 12px rgba(124,58,237,.35)}
+  .brand .iq{background:linear-gradient(120deg,var(--accent) 10%,var(--accent-2) 90%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800;}
   nav .links{display:flex;gap:24px;margin-left:8px}
   nav .links a{color:var(--muted);font-weight:600;font-size:15px}
   nav .links a:hover{color:var(--ink)}
@@ -49,8 +52,8 @@
 
   /* hero */
   .hero{padding:74px 0 60px;background:
-    radial-gradient(1100px 480px at 78% -8%,rgba(123,92,255,.14),transparent 60%),
-    radial-gradient(800px 420px at 0% 110%,rgba(91,61,245,.10),transparent 55%)}
+    radial-gradient(1100px 480px at 78% -8%,rgba(192,38,211,.14),transparent 60%),
+    radial-gradient(800px 420px at 0% 110%,rgba(124,58,237,.10),transparent 55%)}
   .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:50px;align-items:center}
   h1{font-size:54px;font-weight:820}
   .hero p.sub{font-size:19px;color:var(--muted);margin:22px 0 30px;max-width:540px}
@@ -68,7 +71,7 @@
   .lead{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);
     border-radius:12px;margin-bottom:10px;background:#fff}
   .lead .av{width:38px;height:38px;border-radius:50%;flex:none;
-    background:linear-gradient(135deg,#7b5cff,#5b3df5);color:#fff;font-weight:700;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;
     display:flex;align-items:center;justify-content:center;font-size:14px}
   .lead .who b{font-size:14px}
   .lead .who span{font-size:12px;color:var(--muted);display:block}
@@ -98,14 +101,14 @@
   .feat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px}
   .feat .ic{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;
     justify-content:center;font-size:20px;margin-bottom:14px;
-    background:linear-gradient(135deg,rgba(91,61,245,.12),rgba(123,92,255,.12))}
+    background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(192,38,211,.12))}
   .feat h3{font-size:17px;margin-bottom:7px}
   .feat p{color:var(--muted);font-size:14.5px;margin:0}
 
   /* pricing */
   .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
   .plan{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;display:flex;flex-direction:column}
-  .plan.pop{border-color:var(--accent);box-shadow:0 12px 34px rgba(91,61,245,.16);position:relative}
+  .plan.pop{border-color:var(--accent);box-shadow:0 12px 34px rgba(124,58,237,.16);position:relative}
   .plan.pop .badge{position:absolute;top:-12px;left:26px;background:var(--accent);color:#fff;
     font-size:12px;font-weight:700;padding:4px 11px;border-radius:999px}
   .plan h3{font-size:18px}
@@ -128,8 +131,8 @@
   .qa.open .chev{transform:rotate(180deg)}
 
   /* cta band */
-  .cta-band{background:linear-gradient(135deg,#5b3df5,#7b5cff);color:#fff;border-radius:24px;
-    padding:54px;text-align:center;box-shadow:0 20px 50px rgba(91,61,245,.32)}
+  .cta-band{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;border-radius:24px;
+    padding:54px;text-align:center;box-shadow:0 20px 50px rgba(124,58,237,.32)}
   .cta-band h2{font-size:34px;font-weight:820}
   .cta-band p{opacity:.92;font-size:18px;margin:14px auto 26px;max-width:520px}
   .cta-band .btn-primary{background:#fff;color:var(--accent);box-shadow:none}
@@ -161,15 +164,11 @@
 <header>
   <div class="wrap">
     <nav>
-      <a class="brand" href="#top"><span class="logo"></span>LeadsIQ</a>
+      <a class="brand" href="#top">Leads<img class="markimg" src="static/mark.png" alt="iQ"/></a>
       <div class="links">
         <a href="#how">How it works</a>
-        <a href="#features">Features</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#faq">FAQ</a>
       </div>
-      <button class="menu-btn" onclick="document.getElementById('navright').classList.toggle('open')">☰</button>
-      <div class="right" id="navright">
+      <div class="right">
         <a class="login" href="/app">Log in</a>
         <a class="btn btn-primary" href="/app">Get started</a>
       </div>
@@ -181,16 +180,15 @@
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
-      <span class="pill">⚡ Outbound on autopilot</span>
-      <h1 style="margin-top:18px">Qualified leads from<br/>just your domain.</h1>
-      <p class="sub">Drop in your website. LeadsIQ figures out exactly who to target,
-        finds the real decision-makers, writes the outreach, and brings you replies —
-        so you only pay when someone's actually interested.</p>
+      <h1>Qualified leads from<br/>a single domain.</h1>
+      <p class="sub">Drop in a potential client's domain and LeadsIQ runs your
+        entire outbound on autopilot — finding the right decision-makers, writing
+        and sending the outreach, following up, and delivering warm replies
+        straight to your inbox. End-to-end, hands-off.</p>
       <div class="cta">
         <a class="btn btn-primary" href="/app">Try it free — no card required</a>
         <a class="btn btn-ghost" href="#how">See how it works</a>
       </div>
-      <div class="note">14 free leads to start · Set up in under 2 minutes</div>
     </div>
     <div class="demo">
       <div class="bar">
@@ -220,163 +218,41 @@
   </div>
 </section>
 
-<div class="trust">
-  <div class="wrap row">
-    <span>Powered by <b>30+ data sources</b></span>
-    <span>· <b>Verified</b> emails &amp; mobiles</span>
-    <span>· AI-written, <b>personalized</b> outreach</span>
-    <span>· <b>Auto follow-ups</b></span>
-  </div>
-</div>
-
 <section id="how">
   <div class="wrap">
     <div class="center">
       <span class="eyebrow">How it works</span>
       <h2>Domain in. Leads out.</h2>
-      <p>No lists to buy, no sequences to build. Give it your website and it runs the whole funnel for you.</p>
     </div>
-    <div class="steps">
-      <div class="step"><div class="n">1</div><h3>Drop your domain</h3>
-        <p>We read what you do and detect your ideal customer profile automatically.</p></div>
+    <div class="steps" style="grid-template-columns:repeat(3,1fr)">
+      <div class="step"><div class="n">1</div><h3>Drop a potential client's domain</h3>
+        <p>We detect your ideal customer automatically.</p></div>
       <div class="step"><div class="n">2</div><h3>Find the buyers</h3>
-        <p>We surface look-alike companies and the real decision-makers inside them — with verified contact details.</p></div>
-      <div class="step"><div class="n">3</div><h3>Write &amp; send</h3>
-        <p>AI drafts a personalized message per person and sends it, then follows up on its own.</p></div>
-      <div class="step"><div class="n">4</div><h3>Get replies</h3>
-        <p>Interested prospects land in your inbox. You only pay for leads that actually engage.</p></div>
+        <p>Look-alike companies and their verified decision-makers.</p></div>
+      <div class="step"><div class="n">3</div><h3>We reach out</h3>
+        <p>AI writes, sends and follows up — replies land in your inbox.</p></div>
     </div>
   </div>
 </section>
 
-<section id="features" class="features">
-  <div class="wrap">
-    <div class="center">
-      <span class="eyebrow">Capabilities</span>
-      <h2>Everything you need to run outbound</h2>
-      <p>The work of a full SDR team, handled end-to-end.</p>
-    </div>
-    <div class="fgrid">
-      <div class="feat"><div class="ic">🎯</div><h3>Smart ICP detection</h3>
-        <p>From your site alone, we infer who you sell to and find best-fit accounts showing buying signals.</p></div>
-      <div class="feat"><div class="ic">🔎</div><h3>30+ data sources</h3>
-        <p>Decision-makers and verified emails &amp; mobiles, cross-checked across dozens of providers.</p></div>
-      <div class="feat"><div class="ic">✍️</div><h3>AI-written outreach</h3>
-        <p>Each message is personalized to the person and company — not a mail-merge blast.</p></div>
-      <div class="feat"><div class="ic">🔁</div><h3>Automatic follow-ups</h3>
-        <p>Polite, spaced follow-ups that stop the moment someone replies. Nobody gets spammed.</p></div>
-      <div class="feat"><div class="ic">📈</div><h3>Learns from replies</h3>
-        <p>Angles and targeting improve automatically based on what actually gets responses.</p></div>
-      <div class="feat"><div class="ic">🔌</div><h3>CRM &amp; inbox sync</h3>
-        <p>Leads flow straight into your pipeline. Connect your own sending domain in a click.</p></div>
-    </div>
-  </div>
-</section>
-
-<section id="who">
-  <div class="wrap">
-    <div class="center">
-      <span class="eyebrow">Who it's for</span>
-      <h2>Built for teams that need pipeline, not busywork</h2>
-      <p>Founders, agencies, and sales teams who'd rather talk to interested buyers than build lists.</p>
-    </div>
-    <div class="steps">
-      <div class="step"><h3>Founders</h3><p>Get your first meetings without hiring an SDR or learning a sequencing tool.</p></div>
-      <div class="step"><h3>Agencies</h3><p>Spin up outbound per client from just their website — white-glove, hands-off.</p></div>
-      <div class="step"><h3>Sales teams</h3><p>Keep reps closing while pipeline fills itself in the background.</p></div>
-      <div class="step"><h3>Recruiters</h3><p>Reach decision-makers at target companies with verified, direct contact details.</p></div>
-    </div>
-  </div>
-</section>
-
-<section id="pricing" class="features">
-  <div class="wrap">
-    <div class="center">
-      <span class="eyebrow">Pricing</span>
-      <h2>Pay for interested leads, not sends</h2>
-      <p>Start free. Scale when it's working.</p>
-    </div>
-    <div class="pgrid">
-      <div class="plan">
-        <h3>Starter</h3>
-        <div class="price">$0<span>/mo</span></div>
-        <div class="muted">Try it on your domain</div>
-        <ul>
-          <li>14 free leads</li>
-          <li>ICP detection + targeting</li>
-          <li>AI outreach &amp; 2 follow-ups</li>
-          <li>Email support</li>
-        </ul>
-        <a class="btn btn-ghost" href="/app">Start free</a>
-      </div>
-      <div class="plan pop">
-        <span class="badge">Most popular</span>
-        <h3>Growth</h3>
-        <div class="price">$99<span>/mo</span></div>
-        <div class="muted">For steady pipeline</div>
-        <ul>
-          <li>250 qualified leads / mo</li>
-          <li>Verified emails &amp; mobiles</li>
-          <li>Your own sending domain</li>
-          <li>CRM sync + reply inbox</li>
-          <li>Priority support</li>
-        </ul>
-        <a class="btn btn-primary" href="/app">Get started</a>
-      </div>
-      <div class="plan">
-        <h3>Scale</h3>
-        <div class="price">Custom</div>
-        <div class="muted">High volume &amp; teams</div>
-        <ul>
-          <li>Unlimited leads</li>
-          <li>Multiple domains / clients</li>
-          <li>AI calling add-on</li>
-          <li>Dedicated success manager</li>
-        </ul>
-        <a class="btn btn-ghost" href="#contact">Get a demo</a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="faq">
-  <div class="wrap faq">
-    <div class="center"><span class="eyebrow">FAQ</span><h2 style="font-size:34px">Questions, answered</h2></div>
-    <div class="qa"><button onclick="this.parentNode.classList.toggle('open')">How does it know who to target?<span class="chev">⌄</span></button>
-      <div class="a"><p>It reads your website to understand what you sell, then builds an ideal-customer profile and finds look-alike companies and decision-makers that match — no list-building on your end.</p></div></div>
-    <div class="qa"><button onclick="this.parentNode.classList.toggle('open')">Where do the emails come from?<span class="chev">⌄</span></button>
-      <div class="a"><p>We resolve and verify contact details across 30+ data sources, so you get real, deliverable emails and mobiles — not guesses.</p></div></div>
-    <div class="qa"><button onclick="this.parentNode.classList.toggle('open')">Will this hurt my domain reputation?<span class="chev">⌄</span></button>
-      <div class="a"><p>You connect your own sending domain and we keep volume safe, follow-ups capped, and stop the instant someone replies. Deliverability is built in.</p></div></div>
-    <div class="qa"><button onclick="this.parentNode.classList.toggle('open')">What do I actually pay for?<span class="chev">⌄</span></button>
-      <div class="a"><p>You start with free leads, and on paid plans you pay for qualified, interested leads — not raw sends. No interest, no charge.</p></div></div>
-  </div>
-</section>
-
-<section id="contact" style="padding-top:0">
+<section id="contact">
   <div class="wrap">
     <div class="cta-band">
       <h2>See your first leads today</h2>
-      <p>Drop in your domain and watch LeadsIQ find buyers, write the outreach, and bring back replies.</p>
+      <p>Drop in a potential client's domain — LeadsIQ does the rest.</p>
       <a class="btn btn-primary" href="/app">Start free — no card required</a>
     </div>
   </div>
 </section>
 
 <footer>
-  <div class="wrap fcols">
-    <div class="col" style="max-width:280px">
-      <div class="brand" style="margin-bottom:10px"><span class="logo"></span>LeadsIQ</div>
-      <div>Qualified leads from just your domain. Outbound, fully automated.</div>
+  <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap">
+    <div class="brand">Leads<img class="markimg" src="static/mark.png" alt="iQ"/></div>
+    <div style="display:flex;gap:22px;flex-wrap:wrap">
+      <a href="#how">How it works</a><a href="/app">Get started</a><a href="#">Privacy</a>
     </div>
-    <div class="col"><h4>Product</h4>
-      <a href="#how">How it works</a><a href="#features">Features</a><a href="#pricing">Pricing</a></div>
-    <div class="col"><h4>Company</h4>
-      <a href="#">About</a><a href="#contact">Contact</a><a href="#">Careers</a></div>
-    <div class="col"><h4>Legal</h4>
-      <a href="#">Privacy</a><a href="#">Terms</a><a href="#">Unsubscribe</a></div>
+    <div>© 2026 LeadsIQ</div>
   </div>
-  <div class="wrap" style="margin-top:28px">© 2026 LeadsIQ. All rights reserved.</div>
 </footer>
 
 </body>
