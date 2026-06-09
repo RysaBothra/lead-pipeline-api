@@ -38,7 +38,7 @@ from typing import Dict, List, Optional, Tuple
 from leadpipeline.clients.brevo import BrevoClient
 from leadpipeline.clients.eazyreach import EazyReachClient, normalize_linkedin
 from leadpipeline.clients.ocean import OceanClient, SearchFilter
-from leadpipeline.clients.prospeo import ProspeoClient
+from leadpipeline.clients.prospeo import ProspeoClient, account_credits
 from leadpipeline.hasura_store import HasuraStore
 from leadpipeline.templates import (CAMPAIGN_SUBJECT, CAMPAIGN_TEXT,
                                     FOLLOWUP1_SUBJECT, FOLLOWUP1_TEXT,
@@ -94,8 +94,10 @@ def _best_email(resp: dict) -> Tuple[str, bool]:
 
 
 def _prospeo_keys(store: HasuraStore) -> List[str]:
-    """Active Prospeo keys to rotate through. Falls back to the single
-    PROSPEO_API_KEY env var when the prospeo_keys table is empty."""
+    """Active Prospeo keys ordered by remaining credits (most first) so the
+    pipeline auto-uses the richest key and fails over as keys deplete. Depleted
+    keys (0 credits) are dropped. Falls back to the PROSPEO_API_KEY env var when
+    the prospeo_keys table is empty. The credit check is free (no credits used)."""
     try:
         rows = store.fetch("prospeo_keys", "api_key",
                            where='{is_active: {_eq: true}}',
@@ -111,7 +113,18 @@ def _prospeo_keys(store: HasuraStore) -> List[str]:
     if not keys:
         raise RuntimeError("no Prospeo keys: add rows to prospeo_keys or set "
                            "PROSPEO_API_KEY")
-    return keys
+
+    # Usage-based ordering: query each key's remaining credits (free endpoint),
+    # use the richest first, drop fully-depleted keys.
+    scored = [(account_credits(k), k) for k in keys]
+    usable = [(c, k) for c, k in scored if c != 0]   # keep >0 and unknown(-1)
+    if not usable:                                   # all known-depleted
+        usable = scored
+    usable.sort(key=lambda ck: ck[0] if ck[0] >= 0 else -0.5, reverse=True)
+    ordered = [k for _, k in usable]
+    summary = ", ".join(str(c) if c >= 0 else "?" for c, _ in usable)
+    print(f"[prospeo] {len(ordered)} key(s) by remaining credits: {summary}")
+    return ordered
 
 
 def pick_brevo_account(store: HasuraStore) -> Tuple[str, List[Dict]]:

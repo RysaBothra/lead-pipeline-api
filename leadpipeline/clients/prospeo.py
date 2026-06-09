@@ -74,6 +74,27 @@ _QUOTA_SIGNALS = ("INSUFFICIENT", "credit", "Credit", "QUOTA", "quota",
                   "PAYMENT", "Not enough", "NO_CREDIT", "402")
 
 
+def account_credits(api_key: str) -> int:
+    """Remaining Prospeo credits for a key via the free GET /account-information
+    endpoint (consumes no credits). Returns -1 if it can't be determined."""
+    if not api_key:
+        return -1
+    try:
+        api = HTTPClient("https://api.prospeo.io", {}, rate_per_sec=3.0)
+        resp = api.do_json("GET", "/account-information", None,
+                           extra_headers={"X-KEY": api_key}) or {}
+    except Exception:  # noqa: BLE001
+        return -1
+    data = resp.get("response") if isinstance(resp.get("response"), dict) else resp
+    if not isinstance(data, dict):
+        return -1
+    for k in ("remaining_credits", "credits_remaining", "remaining", "credits"):
+        v = data.get(k)
+        if isinstance(v, (int, float)):
+            return int(v)
+    return -1
+
+
 class ProspeoClient:
     def __init__(self, api_key, rate_per_sec: float = 1.0):
         """api_key may be a single key (str) or a pool of keys (list) to rotate
@@ -92,29 +113,39 @@ class ProspeoClient:
             "https://api.prospeo.io", {}, rate_per_sec=rate_per_sec)
 
     def _post(self, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
-        """POST rotating across the key pool. Round-robins per call; on a
-        rate-limit (HTTP 400 'Rate limit exceeded') or out-of-credits error,
-        rotates to the next key and retries (back off only for rate limits)."""
+        """POST using the current key, advancing only when a key is depleted.
+
+        The pool is pre-ordered most-credits-first (see _prospeo_keys), so this
+        sticks to the richest key and fails over to the next only when the
+        current one is out of credits. Rate limits are retried on the same key
+        a couple times (transient), then it moves on."""
         if not self.keys:
             raise RuntimeError("no Prospeo API keys configured")
         n = len(self.keys)
-        delay = 2.0
+        delay, rl_retries, attempts = 2.0, 0, 0
         last: Optional[Exception] = None
-        for _ in range(n + 4):  # cover every key plus a few rate-limit backoffs
+        while attempts < n + 6:
+            attempts += 1
             key = self.keys[self._idx % n]
-            self._idx = (self._idx + 1) % n   # advance for the next call too
             try:
                 return self.api.do_json("POST", path, body,
                                         extra_headers={"X-KEY": key}) or {}
             except RuntimeError as e:
                 last, msg = e, str(e)
                 if "Rate limit" in msg:
-                    time.sleep(delay)
-                    delay = min(delay * 2, 20.0)
-                    continue        # next key (already advanced)
+                    if rl_retries < 2:           # transient — retry same key
+                        rl_retries += 1
+                        time.sleep(delay)
+                        delay = min(delay * 2, 20.0)
+                        continue
+                    rl_retries = 0               # persistent — move on
+                    self._idx = (self._idx + 1) % n
+                    continue
                 if any(s in msg for s in _QUOTA_SIGNALS):
-                    continue        # this key is exhausted — try the next
-                raise               # real error (incl. NO_RESULTS) — bubble up
+                    rl_retries = 0               # depleted — next richest key
+                    self._idx = (self._idx + 1) % n
+                    continue
+                raise                            # real error (incl. NO_RESULTS)
         raise last or RuntimeError("Prospeo: all keys exhausted or rate-limited")
 
     def find_email_by_linkedin(self, linkedin_url: str) -> Tuple[str, bool]:

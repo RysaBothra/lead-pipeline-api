@@ -529,18 +529,6 @@ _GUI_HTML = """<!doctype html>
   </div>
 
   <div class="card">
-    <h2>Prospeo API keys (rotation)</h2>
-    <div id="pkeylist"><span style="color:var(--muted);font-size:13px">—</span></div>
-    <label style="margin-top:12px">Add keys (one per line — paste as many as you like)</label>
-    <textarea id="pkeyinput" rows="3" placeholder="pk_abc123...&#10;pk_def456..."></textarea>
-    <button onclick="addProspeoKeys()" style="margin-top:8px">Add keys</button>
-    <div class="msg" id="pkeymsg"></div>
-    <p style="font-size:12px;color:var(--muted);margin:8px 0 0">
-      Calls rotate across active keys (round-robin) and fail over to the next key when one is rate-limited or out of credits. Falls back to the <code>PROSPEO_API_KEY</code> env var if the pool is empty.
-    </p>
-  </div>
-
-  <div class="card">
     <h2>Analytics <button class="ghost" style="float:right;padding:4px 10px" onclick="refreshStatus()">Refresh</button></h2>
     <div style="font-size:12px;color:var(--muted);margin:0 0 8px;font-weight:600">All-time (cumulative)</div>
     <div class="grid" id="lifetime"></div>
@@ -565,7 +553,7 @@ function saveToken(){
   TOKEN = document.getElementById('token').value.trim();
   localStorage.setItem('lp_token', TOKEN);
   msg('tokmsg', TOKEN ? 'Saved.' : 'Cleared.', true);
-  refreshStatus(); refreshSends(); loadTemplates(); loadProspeoKeys();
+  refreshStatus(); refreshSends(); loadTemplates();
 }
 function msg(id, text, ok){
   const el = document.getElementById(id);
@@ -717,45 +705,9 @@ async function deleteTemplate(id){
   try { await api('/templates/'+id, {method:'DELETE'}); loadTemplates(); }
   catch(e){ msg('tplmsg', e.message, false); }
 }
-/* ---- Prospeo API keys (rotation) ---- */
-async function loadProspeoKeys(){
-  if(!TOKEN) return;
-  try {
-    const rows = await api('/prospeo-keys');
-    const el = document.getElementById('pkeylist');
-    el.innerHTML = rows.length ? rows.map(r=>
-      `<div class="tplrow"><div><div class="nm"><code>${esc(r.api_key)}</code>${r.label?(' · '+esc(r.label)):''}</div>
-       <div class="sub">${r.is_active?'active':'paused'}</div></div>
-       <div class="acts">
-         <button class="ghost" onclick="toggleProspeoKey('${r.id}')">${r.is_active?'Pause':'Activate'}</button>
-         <button class="ghost" onclick="deleteProspeoKey('${r.id}')">Delete</button>
-       </div></div>`).join('')
-      : '<span style="color:var(--muted);font-size:13px">No keys in the pool yet — add some below.</span>';
-  } catch(e){ msg('pkeymsg', e.message, false); }
-}
-async function addProspeoKeys(){
-  const raw = document.getElementById('pkeyinput').value;
-  const keys = raw.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
-  if(!keys.length){ msg('pkeymsg','Paste at least one key.', false); return; }
-  try {
-    const res = await api('/prospeo-keys', {method:'POST', body: JSON.stringify({api_keys: keys})});
-    msg('pkeymsg', `Added ${res.added}`+(res.duplicates?` (${res.duplicates} already existed)`:'')+'.', true);
-    document.getElementById('pkeyinput').value='';
-    loadProspeoKeys();
-  } catch(e){ msg('pkeymsg', e.message, false); }
-}
-async function toggleProspeoKey(id){
-  try { await api('/prospeo-keys/'+id, {method:'PATCH'}); loadProspeoKeys(); }
-  catch(e){ msg('pkeymsg', e.message, false); }
-}
-async function deleteProspeoKey(id){
-  if(!confirm('Delete this key from the pool?')) return;
-  try { await api('/prospeo-keys/'+id, {method:'DELETE'}); loadProspeoKeys(); }
-  catch(e){ msg('pkeymsg', e.message, false); }
-}
 function esc(s){ return (s||'').replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-if(TOKEN){ refreshStatus(); refreshSends(); loadTemplates(); loadProspeoKeys(); }
+if(TOKEN){ refreshStatus(); refreshSends(); loadTemplates(); }
 setInterval(()=>{ if(TOKEN) refreshStatus(); }, 8000);
 </script>
 </body>
