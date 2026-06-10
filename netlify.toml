@@ -1,0 +1,7 @@
+# Netlify config for the Next.js landing page (lives in landing/).
+# The Python backend in this repo deploys separately on Render and is ignored
+# by Netlify because of the base directory below.
+[build]
+  base = "landing"
+  command = "npm run build"
+  publish = "out"
