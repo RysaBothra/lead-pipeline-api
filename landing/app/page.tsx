@@ -16,15 +16,11 @@ export default function Home() {
 
       {/* Floating pill navbar */}
       <nav className="absolute top-0 left-0 right-0 z-20 px-6 md:px-10 pt-6 flex items-center justify-between gap-4">
-        {/* Left pill — logo + brand */}
-        <div className="flex items-center gap-2 bg-neutral-900/90 backdrop-blur rounded-full pl-4 pr-6 py-3">
-          <svg viewBox="0 0 256 256" className="h-5 w-5" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M 128 192 L 128 256 L 64.5 256 L 32 223 L 0 192 L 0 128 L 64 128 Z M 256 192 L 256 256 L 192.5 256 L 160 223 L 128 192 L 128 128 L 192 128 Z M 128 64 L 128 128 L 64.5 128 L 32 95 L 0 64 L 0 0 L 64 0 Z M 256 64 L 256 128 L 192.5 128 L 160 95 L 128 64 L 128 0 L 192 0 Z"
-              fill="#ffffff"
-            />
-          </svg>
-          <span className="text-white text-sm font-normal tracking-tight">leadsiq</span>
+        {/* Left pill — the LeadsIQ logo lockup: "Leads" + the iQ mark */}
+        <div className="flex items-center gap-[3px] bg-neutral-900/90 backdrop-blur rounded-full pl-5 pr-6 py-3">
+          <span className="text-white text-[15px] font-semibold tracking-tight">Leads</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/mark.png" alt="iQ" className="h-6 w-auto" />
         </div>
 
         {/* Center pill — nav links (hidden on mobile) */}
