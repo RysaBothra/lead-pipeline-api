@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -49,6 +50,20 @@ app = FastAPI(
 _STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 if os.path.isdir(_STATIC_DIR):
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+
+# CORS: the dashboard is served from Netlify (leadsiq.app/app) and calls this API
+# cross-origin. Auth is a bearer token in a header (no cookies), so credentials
+# aren't needed. Override the allowed origins with CORS_ORIGINS (comma-separated).
+_CORS_ORIGINS = [o.strip() for o in os.getenv(
+    "CORS_ORIGINS",
+    "https://leadsiq.app,https://www.leadsiq.app,http://localhost:3000",
+).split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_CORS_ORIGINS,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 API_TOKEN = (os.getenv("API_TOKEN") or "").strip()
 

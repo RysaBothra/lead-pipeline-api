@@ -18,3 +18,7 @@ _*.py
 # Editor
 .vscode/
 .idea/
+
+# DB migration bundle (contains secrets)
+migration/
+migration_schema.json

@@ -1,6 +1,6 @@
-// Where "Get started" / "Log in" point — the product dashboard (Render URL for
-// now; switch to https://app.leadsiq.app/app once that subdomain's DNS is set up).
-const APP_URL = 'https://lead-pipeline-api-8dj0.onrender.com/app';
+// Where "Get started" / "Log in" point — the dashboard, now a static page on
+// this same Netlify site (public/app/index.html). Its JS calls the Render API.
+const APP_URL = '/app';
 
 function Brand() {
   return (

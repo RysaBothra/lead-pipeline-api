@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>LeadsIQ</title>
+<style>
+  :root { --bg:#0f1117; --card:#1a1d27; --line:#2a2e3a; --txt:#e6e8ee;
+          --muted:#9aa0ad; --accent:#5B3DF5; --ok:#39d98a; --bad:#ff6b61; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 system-ui,Segoe UI,sans-serif; background:var(--bg); color:var(--txt); }
+  header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; gap:14px; align-items:center; }
+  h1 { font-size:17px; margin:0; }
+  main { padding:22px; max-width:920px; margin:0 auto; display:grid; gap:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .card h2 { font-size:14px; margin:0 0 12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  label { font-size:12px; color:var(--muted); display:block; margin:8px 0 3px; }
+  input, select, textarea { background:#11141d; color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:inherit; width:100%; }
+  textarea { resize:vertical; line-height:1.5; }
+  .tplrow { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .tplrow .nm { font-weight:600; }
+  .tplrow .sub { color:var(--muted); font-size:12px; }
+  .tplrow .acts { margin-left:auto; display:flex; gap:6px; }
+  .tplrow .acts button { padding:5px 11px; font-size:12px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:9px 16px; font:inherit; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--txt); }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+  .row > div { flex:1; min-width:120px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+  .stat { background:#11141d; border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center; }
+  .stat b { font-size:22px; display:block; }
+  .stat span { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:600; }
+  .msg { font-size:13px; margin-top:8px; min-height:18px; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  a { color:#9b8cf7; }
+  code { background:#11141d; padding:1px 5px; border-radius:5px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="/mark.png" style="height:26px;width:auto"/>
+  <h1>LeadsIQ</h1>
+</header>
+<main>
+
+  <div class="card">
+    <h2>Access token</h2>
+    <div class="row">
+      <div style="flex:3"><input id="token" type="password" placeholder="paste your API token"/></div>
+      <button onclick="saveToken()">Save</button>
+    </div>
+    <div class="msg" id="tokmsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Add target &amp; run</h2>
+    <label>Company domains (seeds) — add 1–10; more seeds give Ocean a sharper match</label>
+    <div id="domains">
+      <input class="domain-in" placeholder="e.g. razorpay.com"/>
+    </div>
+    <button class="ghost" type="button" onclick="addDomainField()" style="margin-top:8px;padding:6px 12px;font-size:13px">+ Add another domain</button>
+    <div class="row" style="margin-top:12px">
+      <div><label>Country</label><input id="country" value="IN"/></div>
+      <div><label>Max results</label><input id="max" type="number" value="10"/></div>
+    </div>
+    <label>Email to send</label>
+    <div class="row">
+      <div style="flex:1">
+        <select id="emailmode" onchange="onEmailMode()">
+          <option value="template">Pick a template</option>
+          <option value="custom">Write a custom draft</option>
+        </select>
+      </div>
+      <div style="flex:2" id="tplpickwrap"><select id="tplpick"></select></div>
+    </div>
+    <div id="customfields" style="display:none">
+      <label>Subject</label>
+      <input id="csubject" placeholder="Subject line"/>
+      <label>Body</label>
+      <textarea id="cbody" rows="6" placeholder="Hi {{contact.FIRSTNAME}}, ... (use {{contact.FIRSTNAME}} and {{contact.COMPANY}} for personalization)"></textarea>
+    </div>
+    <button id="addbtn" onclick="addTarget()" style="margin-top:14px">Add &amp; Run</button>
+    <div class="msg" id="addmsg"></div>
+    <p style="font-size:12px;color:var(--muted);margin:10px 0 0">
+      Adding a domain runs the whole pipeline automatically and <b>sends real emails</b> to the contacts it finds.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Email templates <button class="ghost" style="float:right;padding:4px 10px" onclick="newTemplate()">+ New template</button></h2>
+    <div id="tpllist"><span class="muted" style="color:var(--muted);font-size:13px">—</span></div>
+    <div id="tpleditor" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+      <input type="hidden" id="tplid"/>
+      <label>Name</label><input id="tplname" placeholder="e.g. SaaS founders — short pitch"/>
+      <label>Subject</label><input id="tplsubject" placeholder="Subject line"/>
+      <label>Body</label>
+      <textarea id="tplbody" rows="9" placeholder="Hi {{contact.FIRSTNAME}}, ..."></textarea>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button onclick="saveTemplate()">Save template</button>
+        <button class="ghost" onclick="cancelTemplate()">Cancel</button>
+      </div>
+      <div class="msg" id="tplmsg"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Analytics <button class="ghost" style="float:right;padding:4px 10px" onclick="refreshStatus()">Refresh</button></h2>
+    <div style="font-size:12px;color:var(--muted);margin:0 0 8px;font-weight:600">All-time (cumulative)</div>
+    <div class="grid" id="lifetime"></div>
+    <div id="scopelbl" style="font-size:12px;color:var(--muted);margin:18px 0 8px;font-weight:600">Latest run</div>
+    <div class="grid" id="stats"></div>
+  </div>
+
+  <div class="card">
+    <h2>Recent sends <button class="ghost" style="float:right;padding:4px 10px" onclick="refreshSends()">Refresh</button></h2>
+    <table>
+      <thead><tr><th>Sent</th><th>From domain</th><th>To</th><th>Subject</th></tr></thead>
+      <tbody id="sends"><tr><td colspan="4" style="color:var(--muted)">—</td></tr></tbody>
+    </table>
+  </div>
+
+</main>
+<script>
+// This dashboard is hosted on Netlify (leadsiq.app/app) but the API lives on the
+// Render backend, so every request is prefixed with API_BASE. Override at runtime
+// with ?api=<url> if you ever point it at a different backend.
+const API_BASE = new URLSearchParams(location.search).get('api')
+  || 'https://lead-pipeline-api-8dj0.onrender.com';
+let TOKEN = localStorage.getItem('lp_token') || '';
+document.getElementById('token').value = TOKEN;
+
+function saveToken(){
+  TOKEN = document.getElementById('token').value.trim();
+  localStorage.setItem('lp_token', TOKEN);
+  msg('tokmsg', TOKEN ? 'Saved.' : 'Cleared.', true);
+  refreshStatus(); refreshSends(); loadTemplates();
+}
+function msg(id, text, ok){
+  const el = document.getElementById(id);
+  el.textContent = text; el.className = 'msg ' + (ok ? 'ok' : 'bad');
+}
+async function api(path, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({'Content-Type':'application/json','Authorization':'Bearer '+TOKEN}, opts.headers||{});
+  const r = await fetch(API_BASE + path, opts);
+  if(!r.ok){ throw new Error('HTTP '+r.status+' '+(await r.text())); }
+  return r.json();
+}
+async function refreshStatus(){
+  if(!TOKEN) return;
+  try {
+    const s = await api('/pipeline/status');
+    // All-time (cumulative) — never resets.
+    const lt = s.lifetime || {};
+    const ltOrder = [['runs','Runs'],['companies','Companies'],['people','People'],
+                     ['emails_found','Found'],['emails_sent','Sent']];
+    document.getElementById('lifetime').innerHTML = ltOrder.map(([k,lab]) =>
+      `<div class="stat"><b>${lt[k] ?? '–'}</b><span>${lab}</span></div>`).join('');
+    // Latest run.
+    const order = [['ocean_inputs_pending','Pending'],['ocean_companies','Companies'],
+                   ['decision_makers','People'],['emails_found','Found'],
+                   ['emails_sent','Sent']];
+    document.getElementById('stats').innerHTML = order.map(([k,lab]) =>
+      `<div class="stat"><b>${s[k] ?? '–'}</b><span>${lab}</span></div>`).join('');
+    const sc = s.scope;
+    document.getElementById('scopelbl').textContent = sc
+      ? `Latest run: ${sc.seed_domain} · ${sc.status}`
+      : 'Latest run — none yet';
+  } catch(e){ msg('tokmsg', e.message, false); }
+}
+async function refreshSends(){
+  if(!TOKEN) return;
+  try {
+    const rows = await api('/pipeline/sends');
+    const body = document.getElementById('sends');
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">No sends yet</td></tr>'; return; }
+    body.innerHTML = rows.map(r => {
+      const to = Array.isArray(r.to_mails) ? r.to_mails.join(', ') : (r.to_mails||'');
+      const dt = (r.sent_at||'').replace('T',' ').slice(0,16);
+      return `<tr><td>${dt}</td><td><code>${r.from_domain||''}</code></td><td>${esc(to)}</td><td>${esc(r.subject||'')}</td></tr>`;
+    }).join('');
+  } catch(e){ msg('tokmsg', e.message, false); }
+}
+function addDomainField(){
+  const wrap = document.getElementById('domains');
+  if(wrap.querySelectorAll('.domain-in').length >= 10){ msg('addmsg','Up to 10 seed domains.', false); return; }
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;margin-top:8px';
+  row.innerHTML = '<input class="domain-in" placeholder="another-domain.com"/>'
+    + '<button class="ghost" type="button" title="remove" onclick="this.parentNode.remove()" style="padding:5px 13px">&times;</button>';
+  wrap.appendChild(row);
+}
+function getDomains(){
+  return Array.from(document.querySelectorAll('.domain-in'))
+    .map(i=>i.value.trim()).filter(Boolean);
+}
+function resetDomains(){
+  document.getElementById('domains').innerHTML = '<input class="domain-in" placeholder="e.g. razorpay.com"/>';
+}
+async function addTarget(){
+  if(!TOKEN){ msg('addmsg','Save your token first.', false); return; }
+  const domains = getDomains();
+  if(!domains.length){ msg('addmsg','Enter at least one domain.', false); return; }
+  // Resolve the email: a picked template or a custom draft.
+  let email_subject=null, email_body=null;
+  const mode = document.getElementById('emailmode').value;
+  if(mode==='custom'){
+    email_subject = document.getElementById('csubject').value.trim();
+    email_body = document.getElementById('cbody').value.trim();
+    if(!email_subject || !email_body){ msg('addmsg','Enter a subject and body for the custom draft.', false); return; }
+  } else {
+    const tid = document.getElementById('tplpick').value;
+    const t = TEMPLATES.find(x=>x.id===tid);
+    if(!t){ msg('addmsg','Pick a template, or create one in Email templates below.', false); return; }
+    email_subject = t.subject; email_body = t.body;
+  }
+  const btn = document.getElementById('addbtn'); btn.disabled = true;
+  try {
+    const body = JSON.stringify({
+      seed_domains: domains,
+      countries: [document.getElementById('country').value.trim() || 'IN'],
+      max_results: parseInt(document.getElementById('max').value||'10',10),
+      email_subject, email_body
+    });
+    const res = await api('/inputs', {method:'POST', body});
+    msg('addmsg', 'Added '+(res.seed_domains||[]).join(', ')+' — pipeline running. Watch status & sends below.', true);
+    resetDomains();
+    setTimeout(refreshStatus, 1500);
+  } catch(e){ msg('addmsg', e.message, false); }
+  finally { btn.disabled = false; }
+}
+
+/* ---- Email templates ---- */
+let TEMPLATES = [];
+function onEmailMode(){
+  const m = document.getElementById('emailmode').value;
+  document.getElementById('tplpickwrap').style.display = m==='template' ? '' : 'none';
+  document.getElementById('customfields').style.display = m==='custom' ? '' : 'none';
+}
+async function loadTemplates(){
+  if(!TOKEN) return;
+  try {
+    TEMPLATES = await api('/templates');
+    const pick = document.getElementById('tplpick');
+    pick.innerHTML = TEMPLATES.length
+      ? TEMPLATES.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')
+      : '<option value="">No templates — create one below</option>';
+    const list = document.getElementById('tpllist');
+    list.innerHTML = TEMPLATES.length ? TEMPLATES.map(t=>
+      `<div class="tplrow"><div><div class="nm">${esc(t.name)}</div><div class="sub">${esc(t.subject)}</div></div>
+       <div class="acts"><button class="ghost" onclick="editTemplate('${t.id}')">Edit</button>
+       <button class="ghost" onclick="deleteTemplate('${t.id}')">Delete</button></div></div>`).join('')
+      : '<span style="color:var(--muted);font-size:13px">No templates yet — click "+ New template".</span>';
+  } catch(e){ msg('tplmsg', e.message, false); }
+}
+function newTemplate(){
+  ['tplid','tplname','tplsubject','tplbody'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('tpleditor').style.display='';
+  msg('tplmsg','',true);
+}
+function editTemplate(id){
+  const t = TEMPLATES.find(x=>x.id===id); if(!t) return;
+  document.getElementById('tplid').value=t.id;
+  document.getElementById('tplname').value=t.name;
+  document.getElementById('tplsubject').value=t.subject;
+  document.getElementById('tplbody').value=t.body;
+  document.getElementById('tpleditor').style.display='';
+}
+function cancelTemplate(){ document.getElementById('tpleditor').style.display='none'; }
+async function saveTemplate(){
+  const id = document.getElementById('tplid').value;
+  const name = document.getElementById('tplname').value.trim();
+  const subject = document.getElementById('tplsubject').value.trim();
+  const bodyv = document.getElementById('tplbody').value;
+  if(!name || !subject || !bodyv.trim()){ msg('tplmsg','Name, subject and body are required.', false); return; }
+  try {
+    if(id){ await api('/templates/'+id, {method:'PUT', body: JSON.stringify({name, subject, body: bodyv})}); }
+    else  { await api('/templates', {method:'POST', body: JSON.stringify({name, subject, body: bodyv})}); }
+    document.getElementById('tpleditor').style.display='none';
+    loadTemplates();
+  } catch(e){ msg('tplmsg', e.message, false); }
+}
+async function deleteTemplate(id){
+  if(!confirm('Delete this template?')) return;
+  try { await api('/templates/'+id, {method:'DELETE'}); loadTemplates(); }
+  catch(e){ msg('tplmsg', e.message, false); }
+}
+function esc(s){ return (s||'').replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+if(TOKEN){ refreshStatus(); refreshSends(); loadTemplates(); }
+setInterval(()=>{ if(TOKEN) refreshStatus(); }, 8000);
+</script>
+</body>
+</html>
