@@ -1,6 +1,7 @@
-// Where "Get started" / "Log in" point — the product dashboard (on Render for
-// now; change to https://app.leadsiq.app once you set that subdomain up).
-const APP_URL = 'https://lead-pipeline-api-8dj0.onrender.com/app';
+// Where "Get started" / "Log in" point — the product dashboard.
+// app.leadsiq.app is a custom domain on the Render service (CNAME -> the
+// onrender host). Works once that subdomain's DNS is set up + cert issued.
+const APP_URL = 'https://app.leadsiq.app/app';
 
 function Brand() {
   return (
