@@ -39,12 +39,14 @@ from leadpipeline.clients.brevo import BrevoClient
 from leadpipeline.clients.eazyreach import EazyReachClient, normalize_linkedin
 from leadpipeline.clients.ocean import OceanClient, SearchFilter
 from leadpipeline.clients.prospeo import ProspeoClient, account_credits
-from leadpipeline.hasura_store import HasuraStore
+from leadpipeline.hasura_store import HasuraStore, physical_table
 from leadpipeline.templates import (CAMPAIGN_SUBJECT, CAMPAIGN_TEXT,
                                     FOLLOWUP1_SUBJECT, FOLLOWUP1_TEXT,
                                     FOLLOWUP2_SUBJECT, FOLLOWUP2_TEXT)
 
-SENT_LOG_TABLE = os.getenv("HASURA_SENT_LOG_TABLE", "subspace_sent_email_log")
+# Physical send-log table in the target DB (leadsiq_emailsends on Subspace).
+SENT_LOG_TABLE = physical_table(
+    os.getenv("HASURA_SENT_LOG_TABLE", "subspace_sent_email_log"))
 
 # Sequence subjects double as markers: a send counts toward a contact's cadence
 # only if its logged subject is one of these. Order = step number.
@@ -379,25 +381,16 @@ def main() -> None:
 
 def _log_send(store: HasuraStore, sender: Dict, to_email: str, msg_id: str,
               subject: str = CAMPAIGN_SUBJECT, body: str = CAMPAIGN_TEXT) -> None:
-    """Insert one delivered email into subspace_sent_email_log. The subject is
-    also the cadence marker (see SEQUENCE_SUBJECTS), so always log the real one."""
-    local, _, domain = sender["email"].partition("@")
+    """Insert one delivered email into the send log (leadsiq_emailsends). The
+    subject is also the cadence marker (see SEQUENCE_SUBJECTS), so always log the
+    real one."""
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     store.insert_one(SENT_LOG_TABLE, {
-        "from_username": local,
-        "from_name": sender.get("name", ""),
-        "from_domain": domain,
+        "from_mail": sender["email"],
+        "to_mail": to_email,
         "subject": subject,
-        "body": body,
-        "to_mails": [to_email],
-        "cc_mails": [],
-        "attachments": [],
         "message_id": msg_id,
         "sent_at": now,
-        "brevo_from": sender["email"],
-        "brevo_to": [to_email],
-        "brevo_subject": subject,
-        "brevo_synced": True,
     })
 
 
@@ -418,10 +411,10 @@ def _parse_ts(s: Optional[str]) -> Optional[datetime]:
 def _campaign_send_count(store: HasuraStore, email: str) -> int:
     """How many campaign-sequence emails (initial + follow-ups) have already
     gone to this address. Used by the auto pipeline to send the initial once."""
-    q = ("query($subj:[String!],$em:jsonb!){%s("
-         "where:{brevo_subject:{_in:$subj},to_mails:{_contains:$em}}"
+    q = ("query($subj:[String!],$em:String!){%s("
+         "where:{subject:{_in:$subj},to_mail:{_eq:$em}}"
          "){id}}" % SENT_LOG_TABLE)
-    rows = store.execute(q, {"subj": SEQUENCE_SUBJECTS, "em": [email]}).get(
+    rows = store.execute(q, {"subj": SEQUENCE_SUBJECTS, "em": email}).get(
         SENT_LOG_TABLE) or []
     return len(rows)
 
@@ -429,17 +422,19 @@ def _campaign_send_count(store: HasuraStore, email: str) -> int:
 def _campaign_history(store: HasuraStore) -> Dict[str, Dict]:
     """Map recipient email -> {count, last} across all campaign-sequence sends."""
     q = ("query($subj:[String!]){%s("
-         "where:{brevo_subject:{_in:$subj}},order_by:{sent_at:desc}"
-         "){to_mails sent_at}}" % SENT_LOG_TABLE)
+         "where:{subject:{_in:$subj}},order_by:{sent_at:desc}"
+         "){to_mail sent_at}}" % SENT_LOG_TABLE)
     rows = store.execute(q, {"subj": SEQUENCE_SUBJECTS}).get(SENT_LOG_TABLE) or []
     hist: Dict[str, Dict] = {}
     for r in rows:
         ts = r.get("sent_at")
-        for em in (r.get("to_mails") or []):
-            h = hist.setdefault(em, {"count": 0, "last": None})
-            h["count"] += 1
-            if h["last"] is None or (ts or "") > h["last"]:
-                h["last"] = ts
+        em = r.get("to_mail")
+        if not em:
+            continue
+        h = hist.setdefault(em, {"count": 0, "last": None})
+        h["count"] += 1
+        if h["last"] is None or (ts or "") > h["last"]:
+            h["last"] = ts
     return hist
 
 
@@ -447,17 +442,18 @@ def _contact_identity(store: HasuraStore, email: str) -> Dict[str, str]:
     """Best-effort FIRSTNAME/COMPANY for a recipient, for Brevo personalization
     on follow-ups (the contact may live on a different Brevo account)."""
     try:
+        ec, dm_t = physical_table("email_contacts"), physical_table("decision_makers")
         rows = store.execute(
-            "query($em:String!){email_contacts(where:{email:{_eq:$em}},"
-            "order_by:{created_at:desc},limit:1){decision_maker_id}}",
-            {"em": email}).get("email_contacts") or []
+            "query($em:String!){%s(where:{email:{_eq:$em}},"
+            "order_by:{created_at:desc},limit:1){decision_maker_id}}" % ec,
+            {"em": email}).get(ec) or []
         dmid = rows[0].get("decision_maker_id") if rows else None
         if not dmid:
             return {}
         dm = store.execute(
-            "query($id:uuid!){decision_makers_by_pk(id:$id)"
-            "{first_name full_name company_name domain}}",
-            {"id": dmid}).get("decision_makers_by_pk") or {}
+            "query($id:uuid!){%s_by_pk(id:$id)"
+            "{first_name full_name company_name domain}}" % dm_t,
+            {"id": dmid}).get(f"{dm_t}_by_pk") or {}
         return {
             "FIRSTNAME": dm.get("first_name") or dm.get("full_name") or "there",
             "COMPANY": dm.get("company_name") or dm.get("domain") or "",

@@ -32,7 +32,7 @@ from pydantic import BaseModel
 # Reuse the already-built, tested pieces.
 from mailer_api import SendReport, SendRequest
 from mailer_api import send as _mailer_send
-from leadpipeline.hasura_store import HasuraStore
+from leadpipeline.hasura_store import HasuraStore, physical_table
 import pipeline_hasura
 
 # Public API docs (Swagger/ReDoc/openapi.json) are OFF by default so the API
@@ -285,7 +285,8 @@ def update_template(tid: str, req: TemplateUpdate,
 @app.delete("/templates/{tid}")
 def delete_template(tid: str, _: None = Depends(require_token)) -> dict:
     store = HasuraStore()
-    store.execute("mutation($id:uuid!){ delete_templates_by_pk(id:$id){ id } }",
+    t = physical_table("templates")
+    store.execute("mutation($id:uuid!){ delete_%s_by_pk(id:$id){ id } }" % t,
                   {"id": tid})
     return {"status": "deleted", "id": tid}
 
@@ -334,9 +335,10 @@ def add_prospeo_keys(req: ProspeoKeysAdd, _: None = Depends(require_token)) -> d
 def toggle_prospeo_key(kid: str, _: None = Depends(require_token)) -> dict:
     """Pause/activate a key (toggles is_active)."""
     store = HasuraStore()
+    pk = physical_table("prospeo_keys")
     cur = store.execute(
-        "query($id:uuid!){ prospeo_keys_by_pk(id:$id){ is_active } }",
-        {"id": kid}).get("prospeo_keys_by_pk")
+        "query($id:uuid!){ %s_by_pk(id:$id){ is_active } }" % pk,
+        {"id": kid}).get(f"{pk}_by_pk")
     if not cur:
         raise HTTPException(404, "key not found")
     new = not cur["is_active"]
@@ -347,20 +349,32 @@ def toggle_prospeo_key(kid: str, _: None = Depends(require_token)) -> dict:
 @app.delete("/prospeo-keys/{kid}")
 def delete_prospeo_key(kid: str, _: None = Depends(require_token)) -> dict:
     store = HasuraStore()
+    pk = physical_table("prospeo_keys")
     store.execute(
-        "mutation($id:uuid!){ delete_prospeo_keys_by_pk(id:$id){ id } }",
+        "mutation($id:uuid!){ delete_%s_by_pk(id:$id){ id } }" % pk,
         {"id": kid})
     return {"status": "deleted", "id": kid}
 
 
 @app.get("/pipeline/sends")
 def pipeline_sends(_: None = Depends(require_token)) -> list:
-    """Recent delivered emails from subspace_sent_email_log (incl. sending domain)."""
+    """Recent delivered emails from the send log (leadsiq_emailsends)."""
     store = HasuraStore()
-    return store.fetch(
-        "subspace_sent_email_log",
-        "from_domain brevo_from to_mails subject message_id sent_at",
+    rows = store.fetch(
+        "email_sends", "from_mail to_mail subject message_id sent_at",
         order_by="{sent_at: desc}", limit=25)
+    # Map to the shape the dashboard table expects.
+    out = []
+    for r in rows:
+        fm = r.get("from_mail") or ""
+        out.append({
+            "from_domain": fm.split("@", 1)[1] if "@" in fm else fm,
+            "to_mails": [r.get("to_mail")] if r.get("to_mail") else [],
+            "subject": r.get("subject"),
+            "message_id": r.get("message_id"),
+            "sent_at": r.get("sent_at"),
+        })
+    return out
 
 
 def _id_in(ids: list) -> str:
@@ -370,13 +384,15 @@ def _id_in(ids: list) -> str:
 
 def _lifetime_totals(store: HasuraStore) -> dict:
     """All-time (cumulative) counts across every run — never reset per run."""
+    ti, tc = physical_table("ocean_inputs"), physical_table("ocean_companies")
+    td, te = physical_table("decision_makers"), physical_table("email_contacts")
     q = """query {
-      runs: ocean_inputs_aggregate { aggregate { count } }
-      companies: ocean_companies_aggregate { aggregate { count } }
-      people: decision_makers_aggregate { aggregate { count } }
-      found: email_contacts_aggregate(where:{email:{_is_null:false}}) { aggregate { count } }
-      sent: email_contacts_aggregate(where:{status:{_eq:"sent"}}) { aggregate { count } }
-    }"""
+      runs: %s_aggregate { aggregate { count } }
+      companies: %s_aggregate { aggregate { count } }
+      people: %s_aggregate { aggregate { count } }
+      found: %s_aggregate(where:{email:{_is_null:false}}) { aggregate { count } }
+      sent: %s_aggregate(where:{status:{_eq:"sent"}}) { aggregate { count } }
+    }""" % (ti, tc, td, te, te)
     try:
         d = store.execute(q)
         g = lambda k: (d.get(k) or {}).get("aggregate", {}).get("count", 0)

@@ -11,6 +11,27 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+# Logical table name (used throughout the code) -> physical table name in the
+# Subspace company DB. The Subspace tables are namespaced + squished. Centralized
+# here so callers keep using the readable logical names.
+_TABLE_ALIAS = {
+    "ocean_inputs":            "leadsiq_oceaninputs",
+    "ocean_companies":         "leadsiq_oceancompanies",
+    "decision_makers":         "leadsiq_decisionmakers",
+    "email_contacts":          "leadsiq_emailcontacts",
+    "templates":               "leadsiq_emailtemplates",
+    "prospeo_keys":            "leadsiq_prospeokeys",
+    "ocean_keys":              "leadsiq_oceankeys",
+    "brevo_keys":              "leadsiq_brevokeys",
+    "email_sends":             "leadsiq_emailsends",
+    "subspace_sent_email_log": "leadsiq_emailsends",
+}
+
+
+def physical_table(name: str) -> str:
+    """Map a logical table name to its physical name in the target DB."""
+    return _TABLE_ALIAS.get(name, name)
+
 
 class HasuraStore:
     def __init__(self, url: Optional[str] = None, secret: Optional[str] = None,
@@ -41,6 +62,7 @@ class HasuraStore:
     def insert_one(self, table: str, obj: Dict[str, Any],
                    returning: str = "id") -> Dict[str, Any]:
         """insert_<table>_one(object: $obj) -> {returning...}. Returns the row."""
+        table = physical_table(table)
         mutation = (f"mutation Ins($obj: {table}_insert_input!) "
                     f"{{ insert_{table}_one(object: $obj) {{ {returning} }} }}")
         data = self.execute(mutation, {"obj": obj})
@@ -49,6 +71,7 @@ class HasuraStore:
     def update_by_pk(self, table: str, pk: Any, changes: Dict[str, Any],
                      pk_field: str = "id", returning: str = "id") -> Dict[str, Any]:
         """update_<table>_by_pk(pk_columns:{id}, _set:$set)."""
+        table = physical_table(table)
         mutation = (
             f"mutation Upd($id: uuid!, $set: {table}_set_input!) "
             f"{{ update_{table}_by_pk(pk_columns: {{{pk_field}: $id}}, _set: $set) "
@@ -62,6 +85,7 @@ class HasuraStore:
         """Generic select. `where`/`order_by` are raw GraphQL arg snippets, e.g.
         where='{status: {_eq: "pending"}}', order_by='{created_at: asc}'.
         """
+        table = physical_table(table)
         args = []
         if where:
             args.append(f"where: {where}")
