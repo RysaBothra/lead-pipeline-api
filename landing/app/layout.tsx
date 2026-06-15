@@ -2,7 +2,6 @@ import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import Script from 'next/script';
-import LoginModal from '../components/LoginModal';
 import { VOCALLABS_API_BASE_URL, GOFLASH_BASE_URL } from '../src/services/api/config';
 
 export const metadata: Metadata = {
@@ -121,7 +120,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
-        <LoginModal />
       </body>
     </html>
   );
