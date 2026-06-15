@@ -43,7 +43,7 @@ export default function HeroSection() {
               required
               placeholder="yourcompany.com"
               aria-label="Your website URL"
-              className="w-full bg-transparent px-2 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              className="w-full border-0 bg-transparent px-2 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0"
             />
           </div>
           <button
