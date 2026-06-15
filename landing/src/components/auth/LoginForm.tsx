@@ -4,7 +4,7 @@ import React, {
   useImperativeHandle,
   forwardRef,
 } from "react";
-import { Phone, Fingerprint, Loader2 } from "lucide-react";
+import { Phone, Fingerprint, Loader2, User } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { CountrySelect } from "../shared/CountrySelect";
 import { usePasskey } from "../../hooks/usePasskey";
@@ -12,6 +12,8 @@ import { showErrorToast } from "../../utils/toast";
 import "flag-icons/css/flag-icons.min.css";
 
 interface LoginFormWithPasskeyProps {
+  name: string;
+  onNameChange: (name: string) => void;
   phone: string;
   loading: boolean;
   onPhoneChange: (phone: string) => void;
@@ -48,6 +50,8 @@ const COUNTRY_CODES = [
 export const LoginForm = forwardRef<LoginFormHandle, LoginFormWithPasskeyProps>(
   (
     {
+      name,
+      onNameChange,
       phone,
       loading,
       onPhoneChange,
@@ -300,6 +304,38 @@ export const LoginForm = forwardRef<LoginFormHandle, LoginFormWithPasskeyProps>(
 
     return (
       <form onSubmit={onOtpSubmit} className="space-y-4">
+        <div>
+          <label
+            htmlFor="name"
+            className="block text-sm font-medium mb-2"
+            style={{ color: "var(--lp-input-label)" }}
+          >
+            Name
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <User className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              autoComplete="name"
+              value={name}
+              onChange={(e) => onNameChange(e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+              className="block w-full pl-10 pr-3 py-2.5 border rounded-lg shadow-sm focus:outline-none focus:ring-0 transition-colors duration-200"
+              style={{
+                backgroundColor: "var(--lp-input-bg)",
+                borderColor: "var(--lp-input-border)",
+                color: "var(--lp-input-text)",
+              }}
+              placeholder="Enter your name"
+            />
+          </div>
+        </div>
         <div>
           <label
             htmlFor="phone"

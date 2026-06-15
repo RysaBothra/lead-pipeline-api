@@ -17,6 +17,20 @@ import { useWhiteLabeling } from "../../hooks/useWhiteLabeling";
 import { CanvasRevealEffect } from "../../components/ui/CanvasRevealEffect";
 import { cn } from "../../utils/cn";
 import { resolveThemeColors, themeCssVars, v } from "../../components/auth/themeTokens";
+const UPDATE_NAME = `
+  mutation UpdateName($id: uuid!, $fullname: String!) {
+    insert_vocallabs_client_one(
+      object: { id: $id, fullname: $fullname }
+      on_conflict: {
+        constraint: client_pkey,
+        update_columns: [fullname]
+      }
+    ) {
+      id
+      fullname
+    }
+  }
+`;
 const UPDATE_COMPANY = `
   mutation UpdateCompany($id: uuid!, $company_name: String!) {
     insert_vocallabs_client_one(
@@ -55,6 +69,7 @@ export function Login() {
     "🚀🚀🚀 LOGIN COMPONENT VERSION 2.0 - WITH LOGGING_IN FIX 🚀🚀🚀",
   );
 
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const otpRef = useRef("");
@@ -329,10 +344,24 @@ export function Login() {
         throw new Error("OTP verification failed");
       }
 
+      // Persist the name entered on the login form to the account so the
+      // dashboard greets by name (and getUserData returns it next time).
+      if (name.trim()) {
+        try {
+          const nameClient = createGraphQLClient(response.auth_token);
+          await nameClient.request(UPDATE_NAME, {
+            id: response.id,
+            fullname: name.trim(),
+          });
+        } catch {
+          // non-fatal — fall back to phone greeting
+        }
+      }
+
       // Store auth data first
       login(
         response.auth_token,
-        { id: response.id, phone: formattedPhone },
+        { id: response.id, phone: formattedPhone, fullname: name.trim() || undefined },
         response.refresh_token,
       );
 
@@ -734,6 +763,8 @@ export function Login() {
             <>
               <LoginForm
                 ref={loginFormRef}
+                name={name}
+                onNameChange={setName}
                 phone={phone}
                 loading={loading}
                 onPhoneChange={setPhone}
