@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import SmoothScroll from '@/components/SmoothScroll';
 
 export const metadata: Metadata = {
   title: 'LeadsIQ — the easiest way to get qualified leads',
@@ -19,7 +20,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
         />
       </head>
-      <body className="font-sora antialiased">{children}</body>
+      <body className="font-sora antialiased">
+        <SmoothScroll>{children}</SmoothScroll>
+      </body>
     </html>
   );
 }
