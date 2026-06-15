@@ -122,15 +122,6 @@
 <main>
 
   <div class="card">
-    <div class="card-h"><h2>API access</h2><span class="sub">required</span></div>
-    <div class="row">
-      <div style="flex:3"><input id="token" type="password" placeholder="paste your API token"/></div>
-      <button onclick="saveToken()">Save token</button>
-    </div>
-    <div class="msg" id="tokmsg"></div>
-  </div>
-
-  <div class="card">
     <div class="card-h">
       <h2>Overview</h2><span class="sub">analytics</span>
       <div class="right"><button class="ghost" onclick="refreshStatus()">Refresh</button></div>
@@ -214,7 +205,6 @@
 const API_BASE = new URLSearchParams(location.search).get('api')
   || 'https://lead-pipeline-api-8dj0.onrender.com';
 let TOKEN = localStorage.getItem('lp_token') || '';
-document.getElementById('token').value = TOKEN;
 
 // Pre-fill the first domain from a ?domain= param (passed by the landing hero).
 (function(){
@@ -222,12 +212,6 @@ document.getElementById('token').value = TOKEN;
   if(qd){ const di = document.querySelector('.domain-in'); if(di) di.value = qd.replace(/^https?:\/\//,'').trim(); }
 })();
 
-function saveToken(){
-  TOKEN = document.getElementById('token').value.trim();
-  localStorage.setItem('lp_token', TOKEN);
-  msg('tokmsg', TOKEN ? 'Saved.' : 'Cleared.', true);
-  refreshStatus(); refreshSends(); loadTemplates();
-}
 function msg(id, text, ok){
   const el = document.getElementById(id);
   el.textContent = text; el.className = 'msg ' + (ok ? 'ok' : 'bad');
@@ -259,7 +243,7 @@ async function refreshStatus(){
     document.getElementById('scopelbl').textContent = sc
       ? `Latest run: ${sc.seed_domain} · ${sc.status}`
       : 'Latest run — none yet';
-  } catch(e){ msg('tokmsg', e.message, false); }
+  } catch(e){ console.error(e); }
 }
 async function refreshSends(){
   if(!TOKEN) return;
@@ -272,7 +256,7 @@ async function refreshSends(){
       const dt = (r.sent_at||'').replace('T',' ').slice(0,16);
       return `<tr><td>${dt}</td><td><code>${r.from_domain||''}</code></td><td>${esc(to)}</td><td>${esc(r.subject||'')}</td></tr>`;
     }).join('');
-  } catch(e){ msg('tokmsg', e.message, false); }
+  } catch(e){ console.error(e); }
 }
 function addDomainField(){
   const wrap = document.getElementById('domains');
