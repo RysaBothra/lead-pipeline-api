@@ -5,3 +5,7 @@
   base = "landing"
   command = "npm run build"
   publish = "out"
+
+# The landing now bundles firebase@12 / three / webauthn, which need Node >=20.
+[build.environment]
+  NODE_VERSION = "20"
