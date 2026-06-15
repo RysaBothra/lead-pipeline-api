@@ -2,7 +2,6 @@ import Navbar from '@/components/Navbar';
 import HeroSection from '@/components/HeroSection';
 import Steps from '@/components/sections/Steps';
 import Capabilities from '@/components/sections/Capabilities';
-import Comparison from '@/components/sections/Comparison';
 import PricingPlans from '@/components/PricingPlans';
 import FAQ from '@/components/sections/FAQ';
 import CTABand from '@/components/sections/CTABand';
@@ -16,7 +15,6 @@ export default function Home() {
         <HeroSection />
         <Steps />
         <Capabilities />
-        <Comparison />
 
         <section id="pricing" className="px-6 py-20 md:px-10 md:py-28">
           <div className="mx-auto max-w-6xl">

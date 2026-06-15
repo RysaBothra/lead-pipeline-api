@@ -55,8 +55,8 @@ export default function PricingPlans() {
       {plans.map((plan) => (
         <div
           key={plan.name}
-          className={`relative flex flex-col rounded-2xl border bg-secondary p-6 ${
-            plan.highlight ? 'border-primary shadow-lg shadow-primary/20' : 'border-border'
+          className={`relative flex flex-col rounded-2xl border bg-background p-6 ${
+            plan.highlight ? 'border-primary shadow-lg shadow-primary/10' : 'border-border'
           }`}
         >
           {plan.highlight && (

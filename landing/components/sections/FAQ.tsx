@@ -23,7 +23,7 @@ const faqs = [
 
 export default function FAQ() {
   return (
-    <section className="px-6 py-20 md:px-10 md:py-28">
+    <section className="bg-muted px-6 py-20 md:px-10 md:py-28">
       <div className="mx-auto max-w-3xl">
         <div className="text-center">
           <span className="text-sm font-semibold uppercase tracking-widest text-primary">FAQ</span>
@@ -33,7 +33,7 @@ export default function FAQ() {
         </div>
         <div className="mt-12 space-y-3">
           {faqs.map((f) => (
-            <details key={f.q} className="group rounded-xl border border-border bg-secondary p-5">
+            <details key={f.q} className="group rounded-xl border border-border bg-background p-5">
               <summary className="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-foreground">
                 {f.q}
                 <span className="ml-4 text-xl text-primary transition-transform group-open:rotate-45">

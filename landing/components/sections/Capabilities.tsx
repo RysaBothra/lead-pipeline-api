@@ -9,7 +9,7 @@ const features = [
 
 export default function Capabilities() {
   return (
-    <section id="features" className="px-6 py-20 md:px-10 md:py-28">
+    <section id="features" className="bg-muted px-6 py-20 md:px-10 md:py-28">
       <div className="mx-auto max-w-6xl">
         <div className="text-center">
           <span className="text-sm font-semibold uppercase tracking-widest text-primary">
@@ -24,7 +24,7 @@ export default function Capabilities() {
         </div>
         <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
-            <div key={f.title} className="rounded-2xl border border-border bg-secondary p-6">
+            <div key={f.title} className="rounded-2xl border border-border bg-background p-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 ✓
               </div>

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Navbar from '@/components/Navbar';
 import PricingPlans from '@/components/PricingPlans';
-import Comparison from '@/components/sections/Comparison';
 import FAQ from '@/components/sections/FAQ';
 import CTABand from '@/components/sections/CTABand';
 import Footer from '@/components/Footer';
@@ -36,7 +35,6 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <Comparison />
         <FAQ />
         <CTABand />
       </main>
