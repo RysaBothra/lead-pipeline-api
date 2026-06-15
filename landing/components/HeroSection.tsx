@@ -9,7 +9,10 @@ export default function HeroSection() {
       {/* Spline 3D background. The scene's built-in accents are green and can't
           be edited from here (it's a hosted asset), so hue-rotate shifts them to
           the brand purple. Tune the degrees to taste. */}
-      <div className="absolute inset-0" style={{ filter: 'hue-rotate(150deg)' }}>
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ filter: 'hue-rotate(150deg)' }}
+      >
         <Spline
           scene="https://prod.spline.design/Slk6b8kz3LRlKiyk/scene.splinecode"
           className="h-full w-full"
