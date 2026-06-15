@@ -35,11 +35,14 @@ export function CompanyForm({
             value={companyName}
             onChange={(e) => onCompanyNameChange(e.target.value)}
             className={cn(
-              "block w-full pl-10 pr-3 py-2 border rounded-md leading-5",
-              "bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white",
-              "placeholder-gray-500 focus:outline-none focus:ring-primary-500",
-              "focus:border-primary-500 sm:text-sm"
+              "block w-full pl-10 pr-3 py-2 border-0 rounded-md leading-5",
+              "placeholder-gray-500 focus:outline-none focus:ring-0 sm:text-sm"
             )}
+            style={{
+              backgroundColor: "var(--lp-input-bg)",
+              borderColor: "var(--lp-input-border)",
+              color: "var(--lp-input-text)",
+            }}
             placeholder="Enter your company name"
           />
         </div>

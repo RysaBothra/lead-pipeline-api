@@ -160,12 +160,12 @@ export function Login() {
           redirectPath,
         );
         setTimeout(() => {
-          navigate(redirectPath, { replace: true });
+          window.location.assign(redirectPath);
         }, 100);
       } else {
         console.log("[Login useEffect] No redirect path, going to home");
         setTimeout(() => {
-          navigate("/", { replace: true });
+          window.location.assign("/app");
         }, 100);
       }
     }
@@ -367,12 +367,12 @@ export function Login() {
           console.log("[Login] Navigating to stored path:", redirectPath);
           // Use setTimeout to ensure auth state is fully updated
           setTimeout(() => {
-            navigate(redirectPath, { replace: true });
+            window.location.assign(redirectPath);
           }, 100);
         } else {
           console.log("[Login] No redirect path, going to home");
           setTimeout(() => {
-            navigate("/", { replace: true });
+            window.location.assign("/app");
           }, 100);
         }
       }
@@ -471,11 +471,11 @@ export function Login() {
         if (redirectPath) {
           localStorage.removeItem("redirectAfterLogin");
           setTimeout(() => {
-            navigate(redirectPath, { replace: true });
+            window.location.assign(redirectPath);
           }, 100);
         } else {
           setTimeout(() => {
-            navigate("/", { replace: true });
+            window.location.assign("/app");
           }, 100);
         }
       }
@@ -541,13 +541,13 @@ export function Login() {
           console.log("[handlePasskeyLogin] Navigating to:", redirectPath);
           // Don't reset loggingIn - let component unmount naturally
           setTimeout(() => {
-            navigate(redirectPath, { replace: true });
+            window.location.assign(redirectPath);
           }, 100);
         } else {
           console.log("[handlePasskeyLogin] No redirect, going to home");
           // Don't reset loggingIn - let component unmount naturally
           setTimeout(() => {
-            navigate("/", { replace: true });
+            window.location.assign("/app");
           }, 100);
         }
       }
@@ -614,12 +614,12 @@ export function Login() {
         console.log("[Login] Navigating to stored path:", redirectPath);
         // Use setTimeout to ensure company data is saved
         setTimeout(() => {
-          navigate(redirectPath, { replace: true });
+          window.location.assign(redirectPath);
         }, 100);
       } else {
         console.log("[Login] No redirect path, going to home");
         setTimeout(() => {
-          navigate("/", { replace: true });
+          window.location.assign("/app");
         }, 100);
       }
     } catch (err) {
