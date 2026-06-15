@@ -3,9 +3,9 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
-  title: 'LeadsIQ — outbound on autopilot',
+  title: 'LeadsIQ — the easiest way to get qualified leads',
   description:
-    'AI-powered prospecting that finds your real buyers, writes personalized outreach, and sends it across your market with follow-ups. Done right, not just fast.',
+    'Drop in your website URL. LeadsIQ figures out who to target, writes the outreach, and brings you qualified replies. You only pay when someone is actually interested.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
