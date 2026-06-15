@@ -103,6 +103,22 @@
     .domain .val { font-size: 16px; font-weight: 600; margin-top: 4px; word-break: break-all; }
     .meta { margin-top: 22px; font-size: 13px; color: var(--muted); }
 
+    .namebox { margin-top: 18px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .namebox input {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      font: inherit; font-size: 14px; padding: 9px 12px; border-radius: 9px;
+      width: 240px; outline: none;
+    }
+    .namebox input:focus { border-color: var(--accent); }
+    .btn-primary {
+      font: inherit; font-size: 14px; font-weight: 500; padding: 9px 18px;
+      border-radius: 9px; cursor: pointer; border: none;
+      background: var(--accent); color: #fff;
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .link { background: none; border: none; color: var(--accent); cursor: pointer; font: inherit; font-size: 13px; padding: 0; }
+    .namemsg { font-size: 13px; color: var(--muted); }
+
     .empty {
       margin-top: 24px;
       border: 1px dashed var(--border);
@@ -174,6 +190,18 @@
       <p class="eyebrow">Dashboard</p>
       <h1>Welcome back, <span id="who">there</span>.</h1>
       <p class="sub">You're signed in to LeadsIQ. This is your dashboard home.</p>
+
+      <div class="namebox">
+        <div id="nameView" style="display:none;">
+          <button class="link" onclick="editName()">Edit name</button>
+        </div>
+        <div id="nameEditor">
+          <input id="nameInput" type="text" placeholder="Enter your name" />
+          <button class="btn-primary" onclick="saveName()">Save name</button>
+        </div>
+        <span class="namemsg" id="nameMsg"></span>
+      </div>
+
       <div class="domain" id="domainBox">
         <div class="lbl">Your website</div>
         <div class="val" id="domainVal"></div>
@@ -250,13 +278,59 @@
     var initial = (location.hash || '').replace('#', '');
     if (initial && document.getElementById(initial)) { showSection(initial); }
 
+    // ── Profile / name feature ──
+    // The dashboard authenticates via the login session; the name is saved to
+    // the user's account through the same VocalLabs GraphQL the login uses.
+    var GQL = 'https://hasura-dev.vocallabs.ai/v1/graphql';
+    var SESSION = null;
+    try { SESSION = JSON.parse(localStorage.getItem('auth') || 'null'); } catch (e) { SESSION = null; }
+
+    function currentName() {
+      var u = (SESSION && SESSION.user) || {};
+      return (u.fullname || '').trim();
+    }
+    function renderGreeting() {
+      var u = (SESSION && SESSION.user) || {};
+      var name = currentName();
+      document.getElementById('who').textContent = name || u.phone || 'there';
+      document.getElementById('nameView').style.display = name ? 'block' : 'none';
+      document.getElementById('nameEditor').style.display = name ? 'none' : 'flex';
+    }
+    function editName() {
+      document.getElementById('nameInput').value = currentName();
+      document.getElementById('nameView').style.display = 'none';
+      document.getElementById('nameEditor').style.display = 'flex';
+    }
+    function saveName() {
+      var name = document.getElementById('nameInput').value.trim();
+      var msg = document.getElementById('nameMsg');
+      if (!name) { msg.textContent = 'Please enter a name.'; return; }
+      if (!SESSION || !SESSION.user || !SESSION.authToken) { msg.textContent = 'Not signed in.'; return; }
+      msg.textContent = 'Saving…';
+      fetch(GQL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SESSION.authToken },
+        body: JSON.stringify({
+          query: 'mutation SetName($id: uuid!, $fullname: String!) { insert_vocallabs_client_one(object: {id: $id, fullname: $fullname}, on_conflict: {constraint: client_pkey, update_columns: [fullname]}) { id fullname } }',
+          variables: { id: SESSION.user.id, fullname: name }
+        })
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res.errors) { msg.textContent = 'Could not save. Please try again.'; return; }
+        SESSION.user.fullname = name;
+        try { localStorage.setItem('auth', JSON.stringify(SESSION)); } catch (e) {}
+        msg.textContent = 'Saved.';
+        renderGreeting();
+      })
+      .catch(function () { msg.textContent = 'Network error. Please try again.'; });
+    }
+
     // ── Populate the signed-in user + domain ──
     (function () {
-      var a;
-      try { a = JSON.parse(localStorage.getItem('auth') || 'null'); } catch (e) { a = null; }
-      if (!a) return;
-      var u = a.user || {};
-      document.getElementById('who').textContent = u.fullname || u.phone || 'there';
+      if (!SESSION) return;
+      var u = SESSION.user || {};
+      renderGreeting();
 
       var domain = new URLSearchParams(location.search).get('domain') ||
         localStorage.getItem('leadsiq_domain') || '';
