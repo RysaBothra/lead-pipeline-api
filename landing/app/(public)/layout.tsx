@@ -1,7 +1,6 @@
-// Public route group: no auth required. Wraps children in the auth Providers
-// so the login screen has access to AuthContext / WhiteLabeling / Theme.
-import { Providers } from '../../src/components/Providers';
-
+// Public route group: no auth required. The login page mounts its own auth
+// Providers client-side (via LoginScreen + dynamic ssr:false), so this layout
+// is just a pass-through.
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
-  return <Providers>{children}</Providers>;
+  return <>{children}</>;
 }
