@@ -39,7 +39,12 @@ export function OtpForm({
           onChange={(e) => onOtpChange(e.target.value)}
           onFocus={onFocus}
           onBlur={onBlur}
-          className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white dark:bg-dark-secondary dark:border-gray-600 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-0 focus:border-gray-600 sm:text-sm"
+          className="block w-full px-3 py-2 border-0 rounded-md leading-5 placeholder-gray-500 focus:outline-none focus:ring-0 sm:text-sm"
+          style={{
+            backgroundColor: "var(--lp-input-bg)",
+            borderColor: "var(--lp-input-border)",
+            color: "var(--lp-input-text)",
+          }}
           placeholder="Enter verification code"
         />
       </div>
