@@ -1,3 +1,5 @@
+import Reveal from '@/components/Reveal';
+
 const plans = [
   {
     name: 'Pay As You Go',
@@ -51,45 +53,48 @@ const plans = [
 
 export default function PricingPlans() {
   return (
-    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      {plans.map((plan) => (
-        <div
-          key={plan.name}
-          className={`relative flex flex-col rounded-2xl border bg-background p-6 ${
-            plan.highlight ? 'border-primary shadow-lg shadow-primary/10' : 'border-border'
-          }`}
-        >
-          {plan.highlight && (
-            <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground">
-              Most popular
-            </span>
-          )}
-          <h3 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            {plan.name}
-          </h3>
-          <div className="mt-4 flex items-baseline gap-1">
-            <span className="text-4xl font-bold tracking-tight text-foreground">{plan.price}</span>
-            <span className="text-sm text-muted-foreground">{plan.unit}</span>
-          </div>
-          <ul className="mt-6 flex flex-1 flex-col gap-3">
-            {plan.features.map((f) => (
-              <li key={f} className="flex items-start gap-2 text-sm text-foreground/80">
-                <span className="mt-0.5 text-primary">✓</span>
-                {f}
-              </li>
-            ))}
-          </ul>
-          <a
-            href="/app"
-            className={`mt-8 inline-flex items-center justify-center rounded-lg px-5 py-3 text-sm font-semibold transition-all active:scale-[0.97] ${
+    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {plans.map((plan, i) => (
+        <Reveal key={plan.name} delay={i * 80}>
+          <div
+            className={`relative flex h-full flex-col rounded-2xl border bg-secondary/60 p-6 transition-all duration-300 hover:-translate-y-1 ${
               plan.highlight
-                ? 'bg-primary text-primary-foreground hover:brightness-110'
-                : 'border border-border text-foreground hover:border-primary hover:text-primary'
+                ? 'border-primary shadow-xl shadow-primary/20'
+                : 'border-border hover:border-primary/40'
             }`}
           >
-            Get started
-          </a>
-        </div>
+            {plan.highlight && (
+              <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-primary-foreground">
+                Most popular
+              </span>
+            )}
+            <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              {plan.name}
+            </h3>
+            <div className="mt-4 flex items-baseline gap-1">
+              <span className="text-4xl font-bold tracking-tight text-foreground">{plan.price}</span>
+              <span className="text-sm text-muted-foreground">{plan.unit}</span>
+            </div>
+            <ul className="mt-6 flex flex-1 flex-col gap-3">
+              {plan.features.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm text-foreground/80">
+                  <span className="mt-0.5 text-primary">✓</span>
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <a
+              href="/app"
+              className={`mt-8 inline-flex items-center justify-center rounded-lg px-5 py-3 text-sm font-semibold transition-all active:scale-[0.97] ${
+                plan.highlight
+                  ? 'bg-primary text-primary-foreground hover:brightness-110'
+                  : 'border border-border text-foreground hover:border-primary hover:text-primary'
+              }`}
+            >
+              Get started
+            </a>
+          </div>
+        </Reveal>
       ))}
     </div>
   );

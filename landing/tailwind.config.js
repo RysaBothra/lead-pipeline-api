@@ -5,7 +5,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sora: ['Sora', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -49,10 +50,20 @@ module.exports = {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
+        'glow-pulse': {
+          '0%, 100%': { opacity: '0.35' },
+          '50%': { opacity: '0.7' },
+        },
+        marquee: {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'fade-in': 'fade-in 0.5s ease-out forwards',
+        'glow-pulse': 'glow-pulse 7s ease-in-out infinite',
+        marquee: 'marquee 28s linear infinite',
       },
     },
   },

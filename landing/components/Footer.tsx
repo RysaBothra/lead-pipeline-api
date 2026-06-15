@@ -14,7 +14,7 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Product
           </h4>
           <ul className="mt-4 space-y-3 text-sm">
@@ -25,7 +25,7 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <h4 className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Legal
           </h4>
           <ul className="mt-4 space-y-3 text-sm">
@@ -36,7 +36,7 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="mx-auto mt-10 max-w-6xl border-t border-border pt-6 text-xs text-muted-foreground">
+      <div className="mx-auto mt-10 max-w-6xl border-t border-border pt-6 font-mono text-xs text-muted-foreground">
         © 2026 LeadsIQ. All rights reserved.
       </div>
     </footer>
