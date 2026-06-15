@@ -128,6 +128,17 @@ export function Login() {
     } catch { /* empty */ }
   }, []);
 
+  // Persist the domain passed from the landing hero (/login?domain=...) so the
+  // /app dashboard can show it after the post-login redirect drops the query.
+  React.useEffect(() => {
+    try {
+      const d = new URLSearchParams(window.location.search).get("domain");
+      if (d && d.trim()) {
+        localStorage.setItem("leadsiq_domain", d.replace(/^https?:\/\//, "").trim());
+      }
+    } catch { /* empty */ }
+  }, []);
+
   // Redirect if user is already logged in (only on initial mount)
   React.useEffect(() => {
     // Only run when we're on the login page
