@@ -689,8 +689,9 @@ export function Login() {
               ) : logoRect ? (
                 <img src={logoRect} alt="Logo" className="h-8 mx-auto block" />
               ) : (
-                <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-                  LeadsIQ
+                <span className="flex items-center justify-center gap-[3px]">
+                  <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Leads</span>
+                  <img src="/mark.png" alt="iQ" className="h-6 w-auto" />
                 </span>
               )}
             </div>

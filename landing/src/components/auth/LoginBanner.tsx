@@ -223,8 +223,9 @@ export function LoginBanner({
           ) : customLogo ? (
             <img src={customLogo} alt="Company Logo" className="h-9" />
           ) : (
-            <span className="text-2xl font-semibold tracking-tight text-white">
-              LeadsIQ
+            <span className="flex items-center gap-[3px]">
+              <span className="text-2xl font-semibold tracking-tight text-white">Leads</span>
+              <img src="/mark.png" alt="iQ" className="h-7 w-auto" />
             </span>
           )}
         </div>
