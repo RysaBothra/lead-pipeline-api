@@ -31,13 +31,13 @@ export default function Navbar() {
         {/* CTAs */}
         <div className="flex items-center gap-2">
           <a
-            href="/app"
+            href="/login"
             className="hidden px-3 py-2 font-mono text-xs uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
           >
             Login
           </a>
           <a
-            href="/app"
+            href="/login"
             className="inline-flex rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 active:scale-[0.97]"
           >
             Start for free

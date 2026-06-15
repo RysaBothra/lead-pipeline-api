@@ -30,7 +30,7 @@ export default function HeroSection() {
 
         {/* Drop-in URL — plain GET form, lands on /app?domain=... (no JS needed) */}
         <form
-          action="/app"
+          action="/login"
           method="get"
           className="mx-auto mt-9 flex w-full max-w-xl animate-fade-up flex-col gap-3 opacity-0 sm:flex-row"
           style={{ animationDelay: '0.45s' }}

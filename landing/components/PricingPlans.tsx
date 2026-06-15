@@ -84,7 +84,7 @@ export default function PricingPlans() {
               ))}
             </ul>
             <a
-              href="/app"
+              href="/login"
               className={`mt-8 inline-flex items-center justify-center rounded-lg px-5 py-3 text-sm font-semibold transition-all active:scale-[0.97] ${
                 plan.highlight
                   ? 'bg-primary text-primary-foreground hover:brightness-110'

@@ -13,7 +13,7 @@ export default function CTABand() {
             No contracts. No setup fees. Pay only for interested replies.
           </p>
           <a
-            href="/app"
+            href="/login"
             className="relative mt-8 inline-flex rounded-lg bg-primary px-8 py-4 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:brightness-110 active:scale-[0.97]"
           >
             Try it for free

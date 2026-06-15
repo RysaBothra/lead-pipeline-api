@@ -1,7 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ['class'],
-  content: ['./app/**/*.{js,ts,jsx,tsx,mdx}', './components/**/*.{js,ts,jsx,tsx,mdx}'],
+  content: [
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
   theme: {
     extend: {
       fontFamily: {
@@ -17,6 +21,41 @@ module.exports = {
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
+          50: '#EBEEFF',
+          100: '#D8DDFF',
+          200: '#B6BCFF',
+          300: '#939BFF',
+          400: '#717AFF',
+          500: '#3F51B5',
+          600: '#354497',
+          700: '#2B3779',
+          800: '#212A5B',
+          900: '#171D3D',
+        },
+        brand: {
+          primary: '#3F51B5',
+          dark: '#111827',
+          light: '#FFFFFF',
+        },
+        'navy-blue': '#1A3C6E',
+        'sky-blue': '#4A90E2',
+        'teal-green': '#27AE60',
+        'soft-gray': '#F4F6F8',
+        'charcoal': '#2C3E50',
+        'warm-yellow': '#F5C542',
+        'coral': '#E57373',
+        dark: {
+          primary: '#000000',
+          secondary: '#0A0A0A',
+          surface: '#171717',
+          tertiary: '#171717',
+          border: '#262626',
+          accent: '#373737',
+          muted: '#525252',
+          soft: '#404040',
+          text: '#737373',
+          light: '#FFFFFF',
+          gray: '#F5F5F5',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
@@ -58,14 +97,33 @@ module.exports = {
           '0%': { transform: 'translateX(0)' },
           '100%': { transform: 'translateX(-50%)' },
         },
+        shimmer: {
+          '0%': { backgroundPosition: '-1000px 0' },
+          '100%': { backgroundPosition: '1000px 0' },
+        },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.97)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        shimmerText: {
+          '0%': { backgroundPosition: '200% 0' },
+          '100%': { backgroundPosition: '-200% 0' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'fade-in': 'fade-in 0.5s ease-out forwards',
         'glow-pulse': 'glow-pulse 7s ease-in-out infinite',
         marquee: 'marquee 28s linear infinite',
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        shimmer: 'shimmer 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'scale-in': 'scaleIn 0.15s ease-out',
+        'shimmer-text': 'shimmerText 3s ease-in-out infinite',
+      },
+      boxShadow: {
+        long: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 8px 16px -8px rgba(0, 0, 0, 0.15)',
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [require('tailwindcss-animate'), require('@tailwindcss/forms')],
 };
