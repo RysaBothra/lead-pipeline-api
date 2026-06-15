@@ -1,11 +1,11 @@
 export default function CTABand() {
   return (
     <section className="px-6 py-20 md:px-10 md:py-28">
-      <div className="mx-auto max-w-5xl rounded-3xl bg-foreground px-8 py-16 text-center md:px-16">
-        <h2 className="text-3xl font-bold tracking-tight text-background md:text-5xl">
+      <div className="mx-auto max-w-5xl rounded-3xl border border-border bg-secondary px-8 py-16 text-center md:px-16">
+        <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-5xl">
           See your first leads
         </h2>
-        <p className="mx-auto mt-4 max-w-xl text-background/70">
+        <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
           No contracts. No setup fees. Pay only for interested replies.
         </p>
         <a

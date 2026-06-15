@@ -55,9 +55,9 @@ export default function PricingPlans() {
       {plans.map((plan) => (
         <div
           key={plan.name}
-          className={`relative flex flex-col rounded-2xl border p-6 ${
-            plan.highlight ? 'border-primary shadow-lg shadow-primary/10' : 'border-border'
-          } bg-background`}
+          className={`relative flex flex-col rounded-2xl border bg-secondary p-6 ${
+            plan.highlight ? 'border-primary shadow-lg shadow-primary/20' : 'border-border'
+          }`}
         >
           {plan.highlight && (
             <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground">
@@ -84,7 +84,7 @@ export default function PricingPlans() {
             className={`mt-8 inline-flex items-center justify-center rounded-lg px-5 py-3 text-sm font-semibold transition-all active:scale-[0.97] ${
               plan.highlight
                 ? 'bg-primary text-primary-foreground hover:brightness-110'
-                : 'bg-secondary text-foreground hover:bg-border'
+                : 'border border-border text-foreground hover:border-primary hover:text-primary'
             }`}
           >
             Get started
