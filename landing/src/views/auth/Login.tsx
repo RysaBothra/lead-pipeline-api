@@ -155,18 +155,9 @@ export function Login() {
       );
       if (redirectPath) {
         localStorage.removeItem("redirectAfterLogin");
-        console.log(
-          "[Login useEffect] Navigating to stored path:",
-          redirectPath,
-        );
-        setTimeout(() => {
-          window.location.assign(redirectPath);
-        }, 100);
+        window.location.replace(redirectPath);
       } else {
-        console.log("[Login useEffect] No redirect path, going to home");
-        setTimeout(() => {
-          window.location.assign("/app");
-        }, 100);
+        window.location.replace("/app");
       }
     }
   }, [
@@ -631,6 +622,16 @@ export function Login() {
 
   const themeColors = resolveThemeColors(homeConfig?.colors);
   const wrapperVars = themeCssVars(themeColors);
+
+  // Already authenticated → we're redirecting to the dashboard (effect above).
+  // Render a spinner instead of flashing the login form for a split second.
+  if (user?.id && !isOtpSent && !needsCompanyName && !loggingIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-white/70" />
+      </div>
+    );
+  }
 
   return (
     <div
