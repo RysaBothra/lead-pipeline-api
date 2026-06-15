@@ -28,27 +28,44 @@ export default function HeroSection() {
           brings you qualified replies. You only pay when someone is actually interested.
         </p>
 
-        <div
-          className="mt-9 flex animate-fade-up flex-wrap items-center justify-center gap-3 opacity-0"
+        {/* Drop-in URL — plain GET form, lands on /app?domain=... (no JS needed) */}
+        <form
+          action="/app"
+          method="get"
+          className="mx-auto mt-9 flex w-full max-w-xl animate-fade-up flex-col gap-3 opacity-0 sm:flex-row"
           style={{ animationDelay: '0.45s' }}
         >
-          <a
-            href="/app"
-            className="rounded-lg bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:brightness-110 active:scale-[0.97]"
+          <div className="flex flex-1 items-center rounded-lg border border-border bg-secondary/60 px-4 transition-colors focus-within:border-primary/60">
+            <span className="select-none font-mono text-sm text-muted-foreground">https://</span>
+            <input
+              name="domain"
+              type="text"
+              required
+              placeholder="yourcompany.com"
+              aria-label="Your website URL"
+              className="w-full bg-transparent px-2 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            className="shrink-0 rounded-lg bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:brightness-110 active:scale-[0.97]"
           >
-            Try it for free — no credit card required
-          </a>
+            Get qualified leads
+          </button>
+        </form>
+
+        <div className="mt-4 animate-fade-up opacity-0" style={{ animationDelay: '0.55s' }}>
           <a
             href="/pricing"
-            className="rounded-lg border border-border bg-secondary/40 px-7 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+            className="font-mono text-xs uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
           >
-            See pricing
+            or see pricing →
           </a>
         </div>
 
         <p
           className="mt-6 animate-fade-up font-mono text-xs uppercase tracking-widest text-muted-foreground/70 opacity-0"
-          style={{ animationDelay: '0.6s' }}
+          style={{ animationDelay: '0.65s' }}
         >
           No contracts · No setup fees · Pay only for interested replies
         </p>

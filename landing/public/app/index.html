@@ -133,6 +133,12 @@ const API_BASE = new URLSearchParams(location.search).get('api')
 let TOKEN = localStorage.getItem('lp_token') || '';
 document.getElementById('token').value = TOKEN;
 
+// Pre-fill the first domain from a ?domain= param (passed by the landing hero).
+(function(){
+  const qd = new URLSearchParams(location.search).get('domain');
+  if(qd){ const di = document.querySelector('.domain-in'); if(di) di.value = qd.replace(/^https?:\/\//,'').trim(); }
+})();
+
 function saveToken(){
   TOKEN = document.getElementById('token').value.trim();
   localStorage.setItem('lp_token', TOKEN);
