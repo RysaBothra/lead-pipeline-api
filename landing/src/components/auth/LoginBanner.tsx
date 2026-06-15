@@ -42,19 +42,19 @@ const ICON_MAP: Record<BannerFeatureConfig["icon"], LucideIcon> = {
 
 const DEFAULT_FEATURES: BannerFeatureConfig[] = [
   {
-    icon: "mic",
-    title: "Natural Voice Conversations",
-    text: "AI agents that understand context and nuance",
+    icon: "zap",
+    title: "Qualified Leads, On Autopilot",
+    text: "LeadsIQ finds who to target and brings you ready-to-talk replies",
   },
   {
-    icon: "zap",
-    title: "Real-time Analytics",
-    text: "Gain insights from every customer interaction",
+    icon: "phone",
+    title: "Outreach That Writes Itself",
+    text: "Personalized messages crafted for every prospect, automatically",
   },
   {
     icon: "shield",
-    title: "Enterprise Security",
-    text: "SOC 2 compliant with end-to-end encryption",
+    title: "Pay Only For Interest",
+    text: "No contracts, no setup fees — you only pay for interested replies",
   },
 ];
 
@@ -141,7 +141,7 @@ function resolveFeatures(configured?: BannerFeatureConfig[]): BannerFeatureConfi
 export function LoginBanner({
   customLogo,
   isLoading,
-  companyName = "VocalLabs AI",
+  companyName = "LeadsIQ",
   homeConfig,
 }: LoginBannerProps) {
   const features = resolveFeatures(homeConfig?.bannerFeatures);
@@ -223,11 +223,9 @@ export function LoginBanner({
           ) : customLogo ? (
             <img src={customLogo} alt="Company Logo" className="h-9" />
           ) : (
-            <img
-              src="https://cdn.vocallabs.ai/Blogs/Images/Jy0e6SZqiGaIMShho6c4.png"
-              alt="VocalLabs Logo"
-              className="h-9"
-            />
+            <span className="text-2xl font-semibold tracking-tight text-white">
+              LeadsIQ
+            </span>
           )}
         </div>
       </div>

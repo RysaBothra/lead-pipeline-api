@@ -42,7 +42,7 @@ export interface WhitelabelBrandingSnapshot {
 }
 
 export const DEFAULT_BRANDING_SNAPSHOT: WhitelabelBrandingSnapshot = {
-  companyName: 'VocalLabs AI',
+  companyName: 'LeadsIQ',
   logoSquare: null,
   logoSquareDark: null,
   logoRect: null,

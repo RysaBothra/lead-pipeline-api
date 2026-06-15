@@ -661,20 +661,20 @@ export function Login() {
             className="text-xs font-medium tracking-widest uppercase mb-3"
             style={{ color: v("headlineText"), opacity: 0.6 }}
           >
-            {homeConfig?.bannerEyebrow || "Enterprise AI Platform"}
+            {homeConfig?.bannerEyebrow || "AI-Powered Outbound"}
           </p>
           <h1
             className="text-3xl xl:text-4xl font-bold leading-tight mb-2 whitespace-pre-line"
             style={{ color: v("headlineText") }}
           >
-            {homeConfig?.bannerHeadline || "Intelligent Voice Conversations"}
+            {homeConfig?.bannerHeadline || "The easiest way to get qualified leads"}
           </h1>
           <p
             className="text-sm leading-relaxed max-w-lg"
             style={{ color: v("headlineText"), opacity: 0.55 }}
           >
             {homeConfig?.bannerSubtext ||
-              "Transform customer interactions with our AI-powered voice agents designed for enterprise-grade performance and seamless engagement."}
+              "Drop in your website URL. LeadsIQ figures out who to target, writes the outreach, and brings you qualified replies — you only pay when someone is actually interested."}
           </p>
         </div>
 
@@ -689,18 +689,9 @@ export function Login() {
               ) : logoRect ? (
                 <img src={logoRect} alt="Logo" className="h-8 mx-auto block" />
               ) : (
-                <>
-                  <img
-                    src="https://cdn.vocallabs.ai/Blogs/Images/qMKYWTC7Qb6pny3lzL7P.png"
-                    alt="Logo"
-                    className="h-8 mx-auto block dark:hidden"
-                  />
-                  <img
-                    src="https://cdn.vocallabs.ai/Blogs/Images/FGvzvKGIy0z7DRBW673v.png"
-                    alt="Logo"
-                    className="h-8 mx-auto hidden dark:block"
-                  />
-                </>
+                <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+                  LeadsIQ
+                </span>
               )}
             </div>
             {(needsCompanyName || isOtpSent) && (
