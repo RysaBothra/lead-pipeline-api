@@ -693,11 +693,11 @@ export function Login() {
       />
 
       <div
-        className="flex-1 flex items-center justify-center p-6 relative overflow-hidden z-20 transition-all duration-500 border-l border-white/10"
+        className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden z-20 transition-all duration-500 border-l border-white/10"
         style={{ backgroundColor: v("rightPanelBg") }}
       >
-        {/* Headline - top left on desktop, hidden on mobile (banner covers it on md+) */}
-        <div className="hidden lg:block absolute top-8 left-8 right-8 z-10">
+        {/* Headline - sits above the form in the same centered column (desktop only). */}
+        <div className="hidden lg:block w-full max-w-md mb-8 z-10">
           <p
             className="text-xs font-medium tracking-widest uppercase mb-3"
             style={{ color: v("headlineText"), opacity: 0.6 }}
@@ -720,7 +720,7 @@ export function Login() {
         </div>
 
         {/* Form content with higher z-index */}
-        <div className="w-full max-w-md space-y-4 relative z-10 scale-[0.95] origin-center mt-0 2xl:mt-24">
+        <div className="w-full max-w-md space-y-4 relative z-10">
 
           <div className="flex flex-col items-center mb-8">
             <div className="md:hidden mb-4 min-h-[32px]">
