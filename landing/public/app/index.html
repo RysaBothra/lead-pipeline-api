@@ -311,13 +311,13 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SESSION.authToken },
         body: JSON.stringify({
-          query: 'mutation SetName($id: uuid!, $fullname: String!) { insert_vocallabs_client_one(object: {id: $id, fullname: $fullname}, on_conflict: {constraint: client_pkey, update_columns: [fullname]}) { id fullname } }',
+          query: 'mutation SetName($id: uuid!, $fullname: String!) { update_vocallabs_client(where: {id: {_eq: $id}}, _set: {fullname: $fullname}) { affected_rows returning { id fullname } } }',
           variables: { id: SESSION.user.id, fullname: name }
         })
       })
       .then(function (r) { return r.json(); })
       .then(function (res) {
-        if (res.errors) { msg.textContent = 'Could not save. Please try again.'; return; }
+        if (res.errors) { console.error('saveName errors:', res.errors); msg.textContent = 'Could not save: ' + (res.errors[0] && res.errors[0].message || 'error'); return; }
         SESSION.user.fullname = name;
         try { localStorage.setItem('auth', JSON.stringify(SESSION)); } catch (e) {}
         msg.textContent = 'Saved.';

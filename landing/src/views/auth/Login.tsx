@@ -19,15 +19,12 @@ import { cn } from "../../utils/cn";
 import { resolveThemeColors, themeCssVars, v } from "../../components/auth/themeTokens";
 const UPDATE_NAME = `
   mutation UpdateName($id: uuid!, $fullname: String!) {
-    insert_vocallabs_client_one(
-      object: { id: $id, fullname: $fullname }
-      on_conflict: {
-        constraint: client_pkey,
-        update_columns: [fullname]
+    update_vocallabs_client(where: { id: { _eq: $id } }, _set: { fullname: $fullname }) {
+      affected_rows
+      returning {
+        id
+        fullname
       }
-    ) {
-      id
-      fullname
     }
   }
 `;
