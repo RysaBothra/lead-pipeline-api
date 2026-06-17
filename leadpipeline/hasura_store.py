@@ -25,6 +25,7 @@ _TABLE_ALIAS = {
     "brevo_keys":              "leadsiq_brevokeys",
     "email_sends":             "leadsiq_emailsends",
     "subspace_sent_email_log": "leadsiq_emailsends",
+    "onboarding":              "leadsiq_onboarding",
 }
 
 

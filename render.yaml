@@ -25,7 +25,14 @@ services:
         sync: false
       - key: EAZYREACH_CLIENT_SECRET
         sync: false
+      # Onboarding website analysis (OpenRouter). Set the key in the dashboard.
+      - key: OPENROUTER_API_KEY
+        sync: false
       # Non-secret tuning — safe to ship as-is.
+      - key: OPENROUTER_MODEL
+        value: anthropic/claude-3.5-haiku
+      - key: OPENROUTER_SITE_URL
+        value: https://leadsiq.app
       - key: FROM_USERNAME
         value: joy
       - key: FROM_NAME

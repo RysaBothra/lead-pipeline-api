@@ -24,6 +24,27 @@ import os
 from datetime import datetime, timezone
 from typing import List, Optional
 
+
+def _load_dotenv(path: str = ".env") -> None:
+    """Load KEY=VALUE lines from a local .env without overriding anything already
+    in the environment. A no-op in prod (no .env file / real env vars win), so
+    `uvicorn server:app` just works locally."""
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path, encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if not ln or ln.startswith("#") or "=" not in ln:
+                    continue
+                k, v = ln.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+    except OSError:
+        pass
+
+
+_load_dotenv()
+
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -34,6 +55,7 @@ from pydantic import BaseModel
 from mailer_api import SendReport, SendRequest
 from mailer_api import send as _mailer_send
 from leadpipeline.hasura_store import HasuraStore, physical_table
+from leadpipeline import onboarding as onboarding_lib
 import pipeline_hasura
 
 # Public API docs (Swagger/ReDoc/openapi.json) are OFF by default so the API
@@ -128,6 +150,25 @@ class TemplateUpdate(BaseModel):
 class ProspeoKeysAdd(BaseModel):
     api_keys: List[str]          # one or more keys (bulk paste supported)
     label: Optional[str] = None
+
+
+# ---- Onboarding wizard (InboundIQ-style flow) ----
+class OnboardingStart(BaseModel):
+    website: str                       # URL the AI analyzes (https:// optional)
+    user_id: Optional[str] = None      # owner; ties the session to a user
+
+
+class OnboardingUpdate(BaseModel):
+    # Any subset of editable sections — each step autosaves the one it touches.
+    website: Optional[str] = None
+    services: Optional[List[str]] = None
+    differentiators: Optional[List[str]] = None
+    personas: Optional[List[dict]] = None
+    geographies: Optional[dict] = None
+    ideal_companies: Optional[dict] = None
+    exclusions: Optional[dict] = None
+    offers: Optional[List[dict]] = None
+    voice_profile: Optional[dict] = None
 
 
 # --------------------------------------------------------------------------
@@ -369,6 +410,78 @@ def delete_prospeo_key(kid: str, _: None = Depends(require_token)) -> dict:
         "mutation($id:uuid!){ delete_%s_by_pk(id:$id){ id } }" % pk,
         {"id": kid})
     return {"status": "deleted", "id": kid}
+
+
+# --------------------------------------------------------------------------
+# Onboarding wizard (website analysis -> sections -> review & launch)
+# --------------------------------------------------------------------------
+@app.post("/onboarding/analyze", status_code=202)
+def onboarding_analyze(req: OnboardingStart, bg: BackgroundTasks,
+                       _: None = Depends(require_token)) -> dict:
+    """Step 1 — 'Add your website'. Creates a draft session and kicks off the
+    AI analysis in the background. Poll GET /onboarding/{id} for progress
+    (analysis_progress 0..100) and the filled-in sections once status=analyzed."""
+    if not (req.website or "").strip():
+        raise HTTPException(400, "website is required")
+    row = onboarding_lib.start(req.website, user_id=req.user_id)
+    bg.add_task(onboarding_lib.run_analysis, row["id"])
+    return {"status": "analyzing", "id": row["id"], "website": row["website"]}
+
+
+@app.get("/onboarding")
+def onboarding_list(user_id: Optional[str] = None,
+                    _: None = Depends(require_token)) -> list:
+    """List sessions (newest first), optionally filtered to one user — lets the
+    UI resume an in-progress wizard."""
+    return onboarding_lib.list_sessions(user_id=user_id)
+
+
+@app.get("/onboarding/{onboarding_id}")
+def onboarding_get(onboarding_id: str,
+                   _: None = Depends(require_token)) -> dict:
+    """Full session state — poll this for analysis progress and to hydrate every
+    wizard step."""
+    row = onboarding_lib.get(onboarding_id)
+    if not row:
+        raise HTTPException(404, "onboarding session not found")
+    return row
+
+
+@app.patch("/onboarding/{onboarding_id}")
+def onboarding_update(onboarding_id: str, req: OnboardingUpdate,
+                      _: None = Depends(require_token)) -> dict:
+    """Autosave an edited section (services, personas, exclusions, offers, …).
+    Send only the fields that changed."""
+    changes = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not changes:
+        raise HTTPException(400, "no fields to update")
+    if not onboarding_lib.get(onboarding_id):
+        raise HTTPException(404, "onboarding session not found")
+    try:
+        return onboarding_lib.update_sections(onboarding_id, changes)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/onboarding/{onboarding_id}/reanalyze", status_code=202)
+def onboarding_reanalyze(onboarding_id: str, bg: BackgroundTasks,
+                         _: None = Depends(require_token)) -> dict:
+    """Re-run the AI analysis for an existing session (overwrites the sections)."""
+    if not onboarding_lib.get(onboarding_id):
+        raise HTTPException(404, "onboarding session not found")
+    bg.add_task(onboarding_lib.run_analysis, onboarding_id)
+    return {"status": "analyzing", "id": onboarding_id}
+
+
+@app.post("/onboarding/{onboarding_id}/launch")
+def onboarding_launch(onboarding_id: str,
+                      _: None = Depends(require_token)) -> dict:
+    """Review & launch — validate and mark the profile ready. Persist-only:
+    this does not send any outbound email."""
+    try:
+        return onboarding_lib.launch(onboarding_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.get("/pipeline/sends")
