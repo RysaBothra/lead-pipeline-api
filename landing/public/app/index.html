@@ -142,7 +142,9 @@
   </style>
 </head>
 <body>
-  <!-- Auth gate: runs before the body paints. No valid login session -> /login. -->
+  <!-- Auth gate: runs before the body paints. No valid login session -> /login.
+       First-time users (no completed onboarding) are sent into the wizard once
+       per session, so "Exit to dashboard" doesn't trap them. -->
   <script>
     (function () {
       try {
@@ -150,7 +152,12 @@
         var a = raw ? JSON.parse(raw) : null;
         var ok = a && a.isAuthenticated && a.authToken &&
           (!a.tokenExpiry || a.tokenExpiry > Date.now());
-        if (!ok) { location.replace('/login'); }
+        if (!ok) { location.replace('/login'); return; }
+        if (!localStorage.getItem('leadsiq_onboarded') &&
+            !sessionStorage.getItem('leadsiq_onboard_seen')) {
+          sessionStorage.setItem('leadsiq_onboard_seen', '1');
+          location.replace('/app/onboarding/');
+        }
       } catch (e) { location.replace('/login'); }
     })();
   </script>
@@ -161,6 +168,10 @@
       <img src="/mark.png" alt="iQ" />
     </a>
     <nav>
+      <a class="nav-btn" href="/app/onboarding/" style="text-decoration:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M9 12l2 2 4-4"/></svg>
+        Onboarding
+      </a>
       <button class="nav-btn active" data-section="home">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg>
         Home

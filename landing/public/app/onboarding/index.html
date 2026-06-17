@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LeadsIQ — Onboarding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:#0b0a1f; --panel:#0f0e26; --card:#12112b; --card2:#171534;
+      --border:rgba(255,255,255,0.08); --text:#fff; --muted:#9ca3af;
+      --accent:#7c3aed; --accent2:#a78bfa; --ok:#34d399; --line:rgba(255,255,255,.06);
+    }
+    * { box-sizing:border-box; }
+    html,body { margin:0; height:100%; }
+    body { font-family:'Inter',system-ui,sans-serif; background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(124,58,237,.18), transparent 60%),
+      var(--bg); color:var(--text); min-height:100vh; }
+    a { color:var(--accent2); }
+    .wrap { max-width:1100px; margin:0 auto; padding:32px 28px 80px; }
+    .top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+    .logo { display:flex; align-items:center; gap:3px; text-decoration:none; color:#fff; }
+    .logo span { font-size:20px; font-weight:700; letter-spacing:-.02em; }
+    .logo img { height:22px; }
+    .exit { color:var(--muted); font-size:13px; text-decoration:none; border:1px solid var(--border);
+      padding:7px 13px; border-radius:9px; }
+    .exit:hover { background:rgba(255,255,255,.05); color:#fff; }
+
+    .grid { display:grid; grid-template-columns:1fr 240px; gap:40px; margin-top:30px; align-items:start; }
+    @media (max-width:860px){ .grid { grid-template-columns:1fr; } .rail { display:none; } }
+
+    h1 { font-size:30px; font-weight:800; margin:0 0 10px; line-height:1.15; letter-spacing:-.02em; }
+    h1 .accent { background:linear-gradient(90deg,#a78bfa,#7c3aed); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .lead { color:var(--muted); font-size:15px; line-height:1.6; margin:0 0 26px; max-width:560px; }
+
+    /* step rail */
+    .rail { position:sticky; top:28px; display:flex; flex-direction:column; gap:2px; }
+    .rail .r { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:9px;
+      font-size:13.5px; color:var(--muted); }
+    .rail .r .dot { width:16px; height:16px; border-radius:50%; border:2px solid var(--border); flex:none; display:grid; place-items:center; }
+    .rail .r.active { color:#fff; background:rgba(124,58,237,.12); }
+    .rail .r.active .dot { border-color:var(--accent); }
+    .rail .r.done .dot { background:var(--accent); border-color:var(--accent); }
+    .rail .r.done .dot::after { content:""; width:5px; height:9px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg) translateY(-1px); }
+
+    /* inputs / buttons */
+    .field { width:100%; background:#0c0a22; border:1px solid var(--border); color:#fff; font:inherit;
+      font-size:16px; padding:16px 18px; border-radius:13px; outline:none; }
+    .field:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(124,58,237,.18); }
+    .btn { font:inherit; font-weight:600; font-size:14px; padding:12px 22px; border-radius:11px; border:none;
+      background:var(--accent); color:#fff; cursor:pointer; transition:filter .15s, transform .05s; }
+    .btn:hover{ filter:brightness(1.12); } .btn:active{ transform:translateY(1px); }
+    .btn:disabled{ opacity:.55; cursor:default; }
+    .btn.ghost { background:transparent; border:1px solid var(--border); color:#fff; }
+    .btn.ghost:hover { background:rgba(255,255,255,.05); }
+    .row { display:flex; gap:12px; align-items:center; }
+    .err { color:#fca5a5; font-size:13.5px; min-height:18px; margin-top:10px; }
+
+    /* analyzing */
+    .checks { display:flex; flex-direction:column; gap:10px; margin-top:8px; max-width:620px; }
+    .chk { display:flex; gap:14px; align-items:flex-start; padding:16px 18px; border:1px solid var(--border);
+      border-radius:14px; background:var(--card); opacity:.5; transition:opacity .3s, border-color .3s; }
+    .chk.on { opacity:1; border-color:rgba(124,58,237,.4); }
+    .chk .ic { width:22px; height:22px; border-radius:7px; flex:none; display:grid; place-items:center;
+      border:2px solid var(--border); margin-top:1px; }
+    .chk.on .ic { background:var(--accent); border-color:var(--accent); }
+    .chk.on .ic::after { content:""; width:5px; height:9px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg) translateY(-1px); }
+    .chk b { font-size:14.5px; } .chk p { margin:3px 0 0; font-size:13px; color:var(--muted); }
+    .bar { height:8px; border-radius:99px; background:rgba(255,255,255,.07); overflow:hidden; max-width:620px; margin:18px 0 22px; }
+    .bar > i { display:block; height:100%; width:0; background:linear-gradient(90deg,#7c3aed,#a78bfa); transition:width .5s; }
+
+    /* review cards */
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:22px 24px; margin-bottom:16px; }
+    .card .h { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+    .card .h h3 { margin:0; font-size:16px; font-weight:700; }
+    .card .h .count { font-size:12px; color:var(--muted); background:rgba(255,255,255,.06); padding:2px 9px; border-radius:99px; }
+    .card .h .edit { margin-left:auto; font-size:13px; color:var(--accent2); background:none; border:none; cursor:pointer; }
+    ul.bul { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:9px; }
+    ul.bul li { display:flex; gap:11px; font-size:14px; line-height:1.55; color:#e7e7ee; }
+    ul.bul li::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--accent); margin-top:7px; flex:none; }
+    textarea.ta { width:100%; min-height:140px; background:#0c0a22; border:1px solid var(--border); color:#fff;
+      font:inherit; font-size:14px; line-height:1.6; padding:13px 15px; border-radius:12px; resize:vertical; }
+    .persona { border:1px solid var(--border); border-radius:13px; padding:15px 17px; margin-bottom:11px; background:var(--card2); }
+    .persona .nm { font-weight:600; font-size:15px; margin-bottom:8px; }
+    .meta { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:9px 0 6px; }
+    .tags { display:flex; flex-wrap:wrap; gap:7px; }
+    .tag { font-size:12.5px; padding:5px 11px; border-radius:99px; background:rgba(124,58,237,.14); border:1px solid rgba(124,58,237,.3); color:#ddd6fe; }
+    .tag.mut { background:rgba(255,255,255,.05); border-color:var(--border); color:#cbd0da; }
+    .tag .x { cursor:pointer; margin-left:6px; opacity:.6; } .tag .x:hover{ opacity:1; }
+    .taginput { background:#0c0a22; border:1px solid var(--border); color:#fff; font:inherit; font-size:13px;
+      padding:6px 11px; border-radius:99px; outline:none; width:150px; }
+    .offer { display:flex; gap:13px; align-items:flex-start; padding:14px 16px; border:1px solid var(--border);
+      border-radius:13px; margin-bottom:10px; cursor:pointer; background:var(--card2); }
+    .offer.sel { border-color:var(--accent); background:rgba(124,58,237,.1); }
+    .offer .box { width:20px; height:20px; border-radius:6px; border:2px solid var(--border); flex:none; margin-top:1px; display:grid; place-items:center; }
+    .offer.sel .box { background:var(--accent); border-color:var(--accent); }
+    .offer.sel .box::after { content:""; width:5px; height:9px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg) translateY(-1px); }
+    .offer .impact { margin-left:auto; font-size:12px; color:var(--accent2); white-space:nowrap; }
+    .savebar { display:flex; gap:10px; margin-top:14px; }
+    .saved { font-size:12.5px; color:var(--ok); align-self:center; }
+    .launchbar { position:sticky; bottom:0; margin-top:24px; padding:18px 0;
+      background:linear-gradient(transparent, var(--bg) 30%); display:flex; gap:14px; align-items:center; }
+    .spin { width:18px; height:18px; border:2px solid rgba(255,255,255,.25); border-top-color:#fff; border-radius:50%; animation:sp .7s linear infinite; }
+    @keyframes sp { to { transform:rotate(360deg); } }
+    .done-wrap { text-align:center; padding:60px 20px; }
+    .done-wrap .big { width:64px; height:64px; border-radius:50%; background:rgba(52,211,153,.15); display:grid; place-items:center; margin:0 auto 22px; }
+    .done-wrap .big::after { content:""; width:14px; height:26px; border:solid var(--ok); border-width:0 4px 4px 0; transform:rotate(45deg) translateY(-3px); }
+    .hide { display:none !important; }
+  </style>
+</head>
+<body>
+  <!-- Auth gate -->
+  <script>
+    (function () {
+      try {
+        var a = JSON.parse(localStorage.getItem('auth') || 'null');
+        var ok = a && a.isAuthenticated && a.authToken && (!a.tokenExpiry || a.tokenExpiry > Date.now());
+        if (!ok) location.replace('/login');
+      } catch (e) { location.replace('/login'); }
+    })();
+  </script>
+
+  <div class="wrap">
+    <div class="top">
+      <a class="logo" href="/app"><span>Leads</span><img src="/mark.png" alt="iQ" /></a>
+      <a class="exit" href="/app">Exit to dashboard</a>
+    </div>
+
+    <div class="grid">
+      <main id="main"><!-- screens render here --></main>
+
+      <aside class="rail" id="rail">
+        <div class="r" data-step="website"><span class="dot"></span> Website</div>
+        <div class="r" data-step="analyzing"><span class="dot"></span> Analysing</div>
+        <div class="r" data-step="review"><span class="dot"></span> Review</div>
+        <div class="r" data-step="launch"><span class="dot"></span> Launch</div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+  /* ------------------------------------------------------------------ */
+  /*  Config — the Hasura that hosts the onboarding Actions.             */
+  /*  Calls go out with the user's login token (Hasura derives the user)*/
+  /* ------------------------------------------------------------------ */
+  var HASURA = 'https://db.subspace.money/v1/graphql';
+
+  var SESSION = null;
+  try { SESSION = JSON.parse(localStorage.getItem('auth') || 'null'); } catch (e) {}
+  var TOKEN = SESSION && SESSION.authToken;
+
+  async function gql(query, variables) {
+    var r = await fetch(HASURA, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
+      body: JSON.stringify({ query: query, variables: variables || {} })
+    });
+    var j = await r.json();
+    if (j.errors) throw new Error(j.errors[0].message || 'request failed');
+    return j.data;
+  }
+
+  var GET_FIELDS = 'id website status analysis_progress analysis_error services differentiators ' +
+    'personas geographies ideal_companies exclusions offers voice_profile';
+
+  var Actions = {
+    analyze: function (w) { return gql('mutation($w:String!){ analyzeWebsite(website:$w){ id status } }', { w: w }).then(function(d){return d.analyzeWebsite;}); },
+    get:     function (id){ return gql('query($id:uuid!){ getOnboarding(id:$id){ ' + GET_FIELDS + ' } }', { id: id }).then(function(d){return d.getOnboarding;}); },
+    update:  function (id, patch){ return gql('mutation($id:uuid!,$p:jsonb!){ updateOnboarding(id:$id, patch:$p){ id updated_at } }', { id: id, p: patch }); },
+    launch:  function (id){ return gql('mutation($id:uuid!){ launchOnboarding(id:$id){ status note } }', { id: id }).then(function(d){return d.launchOnboarding;}); }
+  };
+
+  /* ------------------------------------------------------------------ */
+  var M = document.getElementById('main');
+  var STATE = { id: localStorage.getItem('leadsiq_onboarding_id') || null, row: null };
+
+  function rail(step) {
+    var order = ['website', 'analyzing', 'review', 'launch'];
+    var idx = order.indexOf(step);
+    document.querySelectorAll('#rail .r').forEach(function (el) {
+      var i = order.indexOf(el.dataset.step);
+      el.classList.toggle('active', i === idx);
+      el.classList.toggle('done', i < idx);
+    });
+  }
+  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function arr(v){ return Array.isArray(v) ? v : []; }
+
+  /* ---------- Screen: Website ---------- */
+  function screenWebsite() {
+    rail('website');
+    var prefill = new URLSearchParams(location.search).get('domain') || localStorage.getItem('leadsiq_domain') || '';
+    M.innerHTML =
+      '<h1>Add your <span class="accent">website</span>.</h1>' +
+      '<p class="lead">We’ll analyse your site to understand your offer, ideal customers, and positioning — then build your outbound profile.</p>' +
+      '<input id="web" class="field" placeholder="https://yourcompany.com" value="' + esc(prefill) + '" />' +
+      '<div class="err" id="err"></div>' +
+      '<div class="row" style="margin-top:18px"><button class="btn" id="go">Analyse my website</button></div>';
+    var inp = document.getElementById('web');
+    inp.focus();
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') start(); });
+    document.getElementById('go').addEventListener('click', start);
+  }
+  async function start() {
+    var w = document.getElementById('web').value.trim();
+    var err = document.getElementById('err');
+    if (!w) { err.textContent = 'Please enter your website.'; return; }
+    var btn = document.getElementById('go'); btn.disabled = true; btn.textContent = 'Starting…';
+    try {
+      var res = await Actions.analyze(w);
+      STATE.id = res.id;
+      localStorage.setItem('leadsiq_onboarding_id', res.id);
+      try { localStorage.setItem('leadsiq_domain', w.replace(/^https?:\/\//,'')); } catch(e){}
+      screenAnalyzing();
+    } catch (e) {
+      err.textContent = e.message; btn.disabled = false; btn.textContent = 'Analyse my website';
+    }
+  }
+
+  /* ---------- Screen: Analyzing ---------- */
+  var STEPS = [
+    ['Reading your core pages', 'Homepage, product, and pricing are mapped for context.'],
+    ['Identifying your core offers', 'Your products, services, and primary use cases.'],
+    ['Finding what makes you different', 'Differentiators, proof points, positioning.'],
+    ['Understanding your market', 'Who you sell to and how to frame the pitch.'],
+    ['Building your voice profile', 'Tone, language, and how you should sound.']
+  ];
+  function screenAnalyzing() {
+    rail('analyzing');
+    M.innerHTML =
+      '<h1>Analysing your website…</h1>' +
+      '<p class="lead">This usually takes under a minute. Hang tight while the AI maps your business.</p>' +
+      '<div class="bar"><i id="bar"></i></div>' +
+      '<div class="checks" id="checks">' +
+      STEPS.map(function (s, i) {
+        return '<div class="chk" id="chk' + i + '"><span class="ic"></span><div><b>' + s[0] + '</b><p>' + s[1] + '</p></div></div>';
+      }).join('') + '</div>' +
+      '<div class="err" id="err"></div>';
+    poll();
+  }
+  function paintProgress(p) {
+    document.getElementById('bar').style.width = Math.max(8, p) + '%';
+    var lit = Math.min(STEPS.length, Math.round((p / 100) * STEPS.length));
+    for (var i = 0; i < STEPS.length; i++) document.getElementById('chk' + i).classList.toggle('on', i < lit);
+  }
+  async function poll() {
+    try {
+      var row = await Actions.get(STATE.id);
+      STATE.row = row;
+      paintProgress(row.analysis_progress || 0);
+      if (row.status === 'analyzed' || row.status === 'launched') { screenReview(); return; }
+      if (row.status === 'error') { document.getElementById('err').textContent = 'Analysis failed: ' + (row.analysis_error || 'unknown') + '. '; addRetry(); return; }
+      setTimeout(poll, 2000);
+    } catch (e) { document.getElementById('err').textContent = e.message; setTimeout(poll, 3000); }
+  }
+  function addRetry() {
+    var d = document.createElement('div'); d.className = 'row'; d.style.marginTop = '14px';
+    d.innerHTML = '<button class="btn ghost" id="re">Start over</button>';
+    M.appendChild(d);
+    document.getElementById('re').addEventListener('click', function () { localStorage.removeItem('leadsiq_onboarding_id'); STATE.id = null; screenWebsite(); });
+  }
+
+  /* ---------- Screen: Review ---------- */
+  function screenReview() {
+    rail('review');
+    var r = STATE.row;
+    M.innerHTML =
+      '<h1>Review &amp; <span class="accent">launch</span></h1>' +
+      '<p class="lead">Everything below will drive your outbound. Edit any section, then launch when you’re ready.</p>' +
+      '<div id="sections"></div>' +
+      '<div class="launchbar">' +
+        '<button class="btn" id="launch">Launch campaign</button>' +
+        '<span class="err" id="lerr" style="margin:0"></span>' +
+      '</div>';
+    var host = document.getElementById('sections');
+    host.appendChild(listCard('Services', 'services', arr(r.services)));
+    host.appendChild(listCard('Differentiators', 'differentiators', arr(r.differentiators)));
+    host.appendChild(personasCard(arr(r.personas)));
+    host.appendChild(offersCard(arr(r.offers)));
+    host.appendChild(tagsCard('Target geographies', 'geographies', r.geographies || {}, ['countries','regions']));
+    host.appendChild(tagsCard('Ideal companies', 'ideal_companies', r.ideal_companies || {}, ['names','domains','linkedin_urls']));
+    host.appendChild(tagsCard('Exclusions', 'exclusions', r.exclusions || {}, ['companies','industries','job_titles']));
+    document.getElementById('launch').addEventListener('click', launch);
+  }
+
+  function cardShell(title, count) {
+    var c = document.createElement('div'); c.className = 'card';
+    c.innerHTML = '<div class="h"><h3>' + esc(title) + '</h3>' +
+      (count != null ? '<span class="count">' + count + '</span>' : '') + '</div><div class="body"></div>';
+    return c;
+  }
+  async function save(patch, statusEl) {
+    if (statusEl) statusEl.textContent = 'Saving…';
+    try { await Actions.update(STATE.id, patch); if (statusEl) statusEl.textContent = 'Saved'; setTimeout(function(){ if(statusEl) statusEl.textContent=''; }, 1500); }
+    catch (e) { if (statusEl) statusEl.textContent = e.message; }
+  }
+
+  /* editable string-list card (services / differentiators) */
+  function listCard(title, key, items) {
+    var c = cardShell(title, items.length);
+    var body = c.querySelector('.body');
+    function view() {
+      body.innerHTML = '<ul class="bul">' + items.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
+      var edit = document.createElement('button'); edit.className = 'edit'; edit.textContent = 'Edit';
+      c.querySelector('.h').appendChild(edit);
+      edit.addEventListener('click', function () { edit.remove(); editMode(); });
+    }
+    function editMode() {
+      body.innerHTML = '<textarea class="ta">' + esc(items.join('\n')) + '</textarea>' +
+        '<div class="savebar"><button class="btn" style="padding:9px 16px">Save</button>' +
+        '<button class="btn ghost" style="padding:9px 16px">Cancel</button><span class="saved"></span></div>';
+      var ta = body.querySelector('.ta');
+      var st = body.querySelector('.saved');
+      body.querySelectorAll('button')[0].addEventListener('click', async function () {
+        items = ta.value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+        var p = {}; p[key] = items;
+        await save(p, st);
+        c.querySelector('.count').textContent = items.length;
+        view();
+      });
+      body.querySelectorAll('button')[1].addEventListener('click', view);
+    }
+    view();
+    return c;
+  }
+
+  /* personas (display + delete) */
+  function personasCard(items) {
+    var c = cardShell('Ideal customers', items.length);
+    var body = c.querySelector('.body');
+    function render() {
+      body.innerHTML = items.map(function (p, i) {
+        return '<div class="persona"><div class="nm">' + esc(p.name || ('Persona ' + (i + 1))) + '</div>' +
+          (p.company_size ? '<div class="tags"><span class="tag mut">' + esc(p.company_size) + '</span></div>' : '') +
+          (arr(p.industries).length ? '<div class="meta">Industries</div><div class="tags">' + arr(p.industries).map(function (x) { return '<span class="tag mut">' + esc(x) + '</span>'; }).join('') + '</div>' : '') +
+          (arr(p.roles).length ? '<div class="meta">Target roles</div><div class="tags">' + arr(p.roles).map(function (x) { return '<span class="tag">' + esc(x) + '</span>'; }).join('') + '</div>' : '') +
+          '</div>';
+      }).join('') || '<p style="color:var(--muted);font-size:14px;margin:0">No personas yet.</p>';
+    }
+    render();
+    return c;
+  }
+
+  /* offers (selectable CTAs) */
+  function offersCard(items) {
+    var c = cardShell('Your offer (CTAs)', items.length);
+    var body = c.querySelector('.body');
+    body.insertAdjacentHTML('beforebegin', '');
+    function render() {
+      body.innerHTML = '<p style="color:var(--muted);font-size:13px;margin:0 0 12px">Pick the calls-to-action you can deliver on.</p>' +
+        items.map(function (o, i) {
+          return '<div class="offer ' + (o.selected ? 'sel' : '') + '" data-i="' + i + '"><span class="box"></span>' +
+            '<div>' + esc(o.text) + '</div>' +
+            (o.impact ? '<span class="impact">' + o.impact + '/10 impact</span>' : '') + '</div>';
+        }).join('') + '<div class="savebar"><span class="saved"></span></div>';
+      body.querySelectorAll('.offer').forEach(function (el) {
+        el.addEventListener('click', function () {
+          var i = +el.dataset.i; items[i].selected = !items[i].selected;
+          save({ offers: items }, body.querySelector('.saved'));
+          render();
+        });
+      });
+    }
+    render();
+    return c;
+  }
+
+  /* generic tag groups (geographies / companies / exclusions) */
+  function tagsCard(title, key, obj, fields) {
+    var data = {}; fields.forEach(function (f) { data[f] = arr(obj[f]); });
+    var c = cardShell(title, null);
+    var body = c.querySelector('.body');
+    function render() {
+      body.innerHTML = fields.map(function (f) {
+        return '<div class="meta">' + f.replace(/_/g, ' ') + '</div>' +
+          '<div class="tags" data-f="' + f + '">' +
+          data[f].map(function (x, i) { return '<span class="tag mut">' + esc(x) + '<span class="x" data-f="' + f + '" data-i="' + i + '">×</span></span>'; }).join('') +
+          '<input class="taginput" data-f="' + f + '" placeholder="+ add" /></div>';
+      }).join('') + '<div class="savebar"><span class="saved"></span></div>';
+      body.querySelectorAll('.x').forEach(function (x) {
+        x.addEventListener('click', function () { data[x.dataset.f].splice(+x.dataset.i, 1); persist(); render(); });
+      });
+      body.querySelectorAll('.taginput').forEach(function (inp) {
+        inp.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' && inp.value.trim()) { data[inp.dataset.f].push(inp.value.trim()); persist(); render(); }
+        });
+      });
+    }
+    function persist() {
+      var out = {}; fields.forEach(function (f) { out[f] = data[f]; });
+      if (key === 'geographies') out.global = !!obj.global;
+      var p = {}; p[key] = out;
+      save(p, body.querySelector('.saved'));
+    }
+    render();
+    return c;
+  }
+
+  async function launch() {
+    var btn = document.getElementById('launch'); var err = document.getElementById('lerr');
+    btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+    try {
+      await Actions.launch(STATE.id);
+      rail('launch');
+      try { localStorage.setItem('leadsiq_onboarded', 'yes'); } catch (e) {}
+      M.innerHTML = '<div class="done-wrap"><div class="big"></div>' +
+        '<h1 style="justify-content:center">You’re all set.</h1>' +
+        '<p class="lead" style="margin:0 auto">Your outbound profile is saved. LeadsIQ now knows who to target and what to say.</p>' +
+        '<div class="row" style="justify-content:center;margin-top:26px"><a class="btn" href="/app">Go to dashboard</a></div></div>';
+    } catch (e) { err.textContent = e.message; btn.disabled = false; btn.textContent = 'Launch campaign'; }
+  }
+
+  /* ---------- Boot: resume if we have a session, else start fresh ---------- */
+  (async function boot() {
+    if (!TOKEN) { location.replace('/login'); return; }
+    if (STATE.id) {
+      try {
+        var row = await Actions.get(STATE.id);
+        STATE.row = row;
+        if (row.status === 'analyzing' || row.status === 'draft') { screenAnalyzing(); return; }
+        if (row.status === 'analyzed' || row.status === 'launched') { screenReview(); return; }
+      } catch (e) { /* stale id — fall through to fresh start */ }
+    }
+    screenWebsite();
+  })();
+  </script>
+</body>
+</html>
